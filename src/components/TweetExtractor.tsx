@@ -69,25 +69,35 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
 
   const handleExtractTweets = async () => {
     if (!apiKeys.apify) {
+      const errorMsg = 'Apify API ключ не найден';
       toast({
-        title: "Ошибка",
-        description: "Введите Apify API ключ в настройках",
+        title: "Ошибка конфигурации",
+        description: errorMsg,
         variant: "destructive"
       });
+      addLog('error', errorMsg, { errorType: 'MISSING_API_KEY', component: 'TweetExtractor' });
       return;
     }
 
     if (!urls.trim()) {
+      const errorMsg = 'URL список пуст';
       toast({
-        title: "Ошибка", 
+        title: "Ошибка валидации", 
         description: "Введите URL для извлечения",
         variant: "destructive"
       });
+      addLog('error', errorMsg, { errorType: 'EMPTY_URL_LIST', component: 'TweetExtractor' });
       return;
     }
 
     setIsExtracting(true);
-    addLog('info', 'Начало извлечения твитов', { type: extractionType, urls: urls.split('\n').length });
+    const requestId = `extract_${Date.now()}`;
+    addLog('info', 'Начало извлечения твитов', { 
+      type: extractionType, 
+      urlsCount: urls.split('\n').length, 
+      requestId,
+      timestamp: new Date().toISOString()
+    });
 
     try {
       const urlList = urls.split('\n').filter(url => url.trim());
@@ -95,7 +105,13 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       // Валидация URL
       const invalidUrls = urlList.filter(url => !validateUrl(url.trim()));
       if (invalidUrls.length > 0) {
-        throw new Error(`Неверные URL: ${invalidUrls.join(', ')}`);
+        const errorMsg = `Неверные URL найдены: ${invalidUrls.join(', ')}`;
+        addLog('error', errorMsg, { 
+          errorType: 'INVALID_URLS', 
+          invalidUrls, 
+          requestId 
+        });
+        throw new Error(errorMsg);
       }
 
       // Нормализация и формирование startUrls в правильном формате
@@ -104,6 +120,7 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       }));
 
       console.log('Formatted startUrls:', startUrls);
+      addLog('info', 'URLs подготовлены для извлечения', { startUrls, requestId });
 
       // Определение правильного Actor ID в зависимости от типа извлечения
       const actorId = extractionType === 'accounts' ? 'apidojo/twitter-user-tweets' : 'microworlds/tweet-details';
@@ -132,9 +149,16 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         };
       }
 
-      addLog('info', 'Отправка запроса в Apify', { actorId, requestBody });
+      addLog('info', 'Отправка запроса в Apify API', { 
+        actorId, 
+        requestBody, 
+        requestId,
+        apiEndpoint: `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`
+      });
 
-      const response = await fetch(`https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}`, {
+      const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}`;
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,14 +166,57 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         body: JSON.stringify(requestBody),
       });
 
+      addLog('info', 'Получен ответ от Apify API', { 
+        status: response.status, 
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        requestId 
+      });
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Apify API Error:', errorText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}\n${errorText}`);
+        let errorDetails: any = {
+          httpStatus: response.status,
+          httpStatusText: response.statusText,
+          requestId,
+          apiUrl,
+          requestBody
+        };
+
+        try {
+          const errorText = await response.text();
+          errorDetails.responseBody = errorText;
+          
+          // Попытка распарсить JSON ошибку
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorDetails.parsedError = errorJson;
+            if (errorJson.error) {
+              errorDetails.errorMessage = errorJson.error.message;
+              errorDetails.errorType = errorJson.error.type;
+            }
+          } catch (e) {
+            // Если не JSON, сохраняем как текст
+            errorDetails.rawError = errorText;
+          }
+        } catch (e) {
+          errorDetails.responseReadError = e.message;
+        }
+
+        addLog('error', `Apify API вернул ошибку: HTTP ${response.status}`, errorDetails);
+        
+        const userErrorMsg = errorDetails.errorMessage || 
+                           errorDetails.rawError || 
+                           `HTTP ${response.status}: ${response.statusText}`;
+        
+        throw new Error(`Ошибка Apify API: ${userErrorMsg}`);
       }
 
       const data = await response.json();
-      addLog('success', 'Данные получены от Apify', { count: data.length });
+      addLog('success', 'Данные успешно получены от Apify', { 
+        dataLength: data.length, 
+        sampleData: data.slice(0, 2),
+        requestId 
+      });
 
       const tweets: Tweet[] = data.map((item: any, index: number) => ({
         id: item.id || item.tweet_id || `tweet-${index}`,
@@ -160,7 +227,10 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       }));
 
       setExtractedTweets(tweets);
-      addLog('success', `Успешно извлечено ${tweets.length} твитов`);
+      addLog('success', `Успешно извлечено ${tweets.length} твитов`, { 
+        tweets: tweets.map(t => ({ id: t.id, author: t.author })),
+        requestId 
+      });
 
       toast({
         title: "Успех",
@@ -168,38 +238,60 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       });
 
     } catch (error) {
-      addLog('error', 'Ошибка при извлечении твитов', error);
+      const errorDetails = {
+        errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        requestId,
+        timestamp: new Date().toISOString(),
+        extractionType,
+        urlsProvided: urls.split('\n').filter(url => url.trim()).length
+      };
+
+      addLog('error', 'Критическая ошибка при извлечении твитов', errorDetails);
+      
       toast({
-        title: "Ошибка",
-        description: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        title: "Ошибка извлечения",
+        description: errorDetails.errorMessage,
         variant: "destructive"
       });
     } finally {
       setIsExtracting(false);
+      addLog('info', 'Завершение процесса извлечения', { requestId, timestamp: new Date().toISOString() });
     }
   };
 
   const handleGenerateComments = async () => {
     if (!apiKeys.openai) {
+      const errorMsg = 'OpenAI API ключ не найден';
       toast({
-        title: "Ошибка",
-        description: "Введите OpenAI API ключ в настройках",
+        title: "Ошибка конфигурации",
+        description: errorMsg,
         variant: "destructive"
       });
+      addLog('error', errorMsg, { errorType: 'MISSING_OPENAI_KEY', component: 'TweetExtractor' });
       return;
     }
 
     if (extractedTweets.length === 0) {
+      const errorMsg = 'Нет извлеченных твитов для генерации комментариев';
       toast({
-        title: "Ошибка",
+        title: "Ошибка состояния",
         description: "Сначала извлеките твиты",
         variant: "destructive"
       });
+      addLog('error', errorMsg, { errorType: 'NO_TWEETS', component: 'TweetExtractor' });
       return;
     }
 
     setIsGenerating(true);
-    addLog('info', 'Начало генерации комментариев', { tweets: extractedTweets.length, commentsPerTweet });
+    const generationId = `generate_${Date.now()}`;
+    addLog('info', 'Начало генерации комментариев', { 
+      tweets: extractedTweets.length, 
+      commentsPerTweet,
+      generationId,
+      totalCommentsToGenerate: extractedTweets.length * commentsPerTweet
+    });
 
     const newComments: GeneratedComment[] = [];
 
@@ -218,6 +310,12 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
             temperature: 0.7
           };
 
+          addLog('info', `Генерация комментария ${i + 1}/${commentsPerTweet} для твита ${tweet.id}`, {
+            tweetId: tweet.id,
+            generationId,
+            requestBody
+          });
+
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -228,7 +326,17 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
           });
 
           if (!response.ok) {
-            throw new Error(`OpenAI API error: ${response.status}`);
+            const errorText = await response.text();
+            const errorDetails = {
+              httpStatus: response.status,
+              httpStatusText: response.statusText,
+              responseBody: errorText,
+              tweetId: tweet.id,
+              generationId
+            };
+            
+            addLog('error', `OpenAI API ошибка для твита ${tweet.id}`, errorDetails);
+            throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
           }
 
           const data = await response.json();
@@ -241,11 +349,21 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
             comment,
             expanded: false
           });
+
+          addLog('success', `Комментарий сгенерирован для твита ${tweet.id}`, {
+            tweetId: tweet.id,
+            commentLength: comment.length,
+            generationId
+          });
         }
       }
 
       setGeneratedComments(newComments);
-      addLog('success', `Сгенерировано ${newComments.length} комментариев`);
+      addLog('success', `Генерация завершена: ${newComments.length} комментариев`, { 
+        generationId,
+        totalComments: newComments.length,
+        tweetsProcessed: extractedTweets.length
+      });
 
       toast({
         title: "Успех",
@@ -253,14 +371,23 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       });
 
     } catch (error) {
-      addLog('error', 'Ошибка при генерации комментариев', error);
+      const errorDetails = {
+        errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+        generationId,
+        commentsGenerated: newComments.length,
+        timestamp: new Date().toISOString()
+      };
+
+      addLog('error', 'Ошибка при генерации комментариев', errorDetails);
       toast({
-        title: "Ошибка",
-        description: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        title: "Ошибка генерации",
+        description: errorDetails.errorMessage,
         variant: "destructive"
       });
     } finally {
       setIsGenerating(false);
+      addLog('info', 'Завершение процесса генерации', { generationId, timestamp: new Date().toISOString() });
     }
   };
 

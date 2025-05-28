@@ -181,7 +181,7 @@ export const Settings = ({ apiKeys, onSaveApiKeys, addLog }: SettingsProps) => {
               onClick={handleTestApifyConnection}
               variant="outline"
               size="sm"
-              className="border-white/20 text-white hover:bg-white/10"
+              className="bg-blue-600/20 border-blue-400/40 text-blue-100 hover:bg-blue-500/30 hover:border-blue-300/60 font-medium shadow-md"
               disabled={!localApiKeys.apify}
             >
               Тестировать подключение
@@ -221,7 +221,7 @@ export const Settings = ({ apiKeys, onSaveApiKeys, addLog }: SettingsProps) => {
               onClick={handleTestOpenAIConnection}
               variant="outline"
               size="sm"
-              className="border-white/20 text-white hover:bg-white/10"
+              className="bg-green-600/20 border-green-400/40 text-green-100 hover:bg-green-500/30 hover:border-green-300/60 font-medium shadow-md"
               disabled={!localApiKeys.openai}
             >
               Тестировать подключение
@@ -234,7 +234,7 @@ export const Settings = ({ apiKeys, onSaveApiKeys, addLog }: SettingsProps) => {
           <Button 
             onClick={handleSave}
             disabled={isSaving}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+            className="w-full bg-purple-600/90 hover:bg-purple-500 text-white font-medium border border-purple-400/50 shadow-lg hover:shadow-purple-500/25 transition-all duration-200"
           >
             {isSaving ? (
               <>Сохранение...</>
