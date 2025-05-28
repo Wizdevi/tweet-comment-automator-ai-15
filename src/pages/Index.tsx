@@ -81,41 +81,46 @@ const Index: React.FC = () => {
   }, [addLog]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-30" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-      }}></div>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Image with Overlay */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url('/lovable-uploads/9f110884-6c4a-426a-922f-7980e411482e.png')`
+        }}
+      />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       
       <div className="relative z-10 container mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold text-white mb-4 bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent drop-shadow-lg">
             Tweet Comment Automator AI
           </h1>
-          <p className="text-xl text-blue-200 max-w-2xl mx-auto">
+          <p className="text-xl text-cyan-100 max-w-2xl mx-auto drop-shadow-md">
             Автоматизированное извлечение твитов и генерация умных комментариев с помощью ИИ
           </p>
         </div>
 
-        <Card className="max-w-7xl mx-auto bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
+        <Card className="max-w-7xl mx-auto bg-black/40 backdrop-blur-xl border-cyan-500/30 shadow-2xl shadow-cyan-500/20">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="p-6">
-            <TabsList className="grid w-full grid-cols-3 mb-8 bg-black/20 backdrop-blur-sm">
+            <TabsList className="grid w-full grid-cols-3 mb-8 bg-black/60 backdrop-blur-sm border border-cyan-500/30">
               <TabsTrigger 
                 value="extractor" 
-                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-blue-200 hover:text-white transition-all duration-200 flex items-center gap-2"
+                className="data-[state=active]:bg-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-cyan-500/30 text-cyan-200 hover:text-white hover:bg-cyan-700/50 transition-all duration-200 flex items-center gap-2 border border-transparent data-[state=active]:border-cyan-400/50"
               >
                 <Twitter className="w-4 h-4" />
                 Извлечение твитов
               </TabsTrigger>
               <TabsTrigger 
                 value="settings" 
-                className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-purple-200 hover:text-white transition-all duration-200 flex items-center gap-2"
+                className="data-[state=active]:bg-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/30 text-purple-200 hover:text-white hover:bg-purple-700/50 transition-all duration-200 flex items-center gap-2 border border-transparent data-[state=active]:border-purple-400/50"
               >
                 <SettingsIcon className="w-4 h-4" />
                 Настройки
               </TabsTrigger>
               <TabsTrigger 
                 value="logs" 
-                className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-200 hover:text-white transition-all duration-200 flex items-center gap-2"
+                className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-500/30 text-emerald-200 hover:text-white hover:bg-emerald-700/50 transition-all duration-200 flex items-center gap-2 border border-transparent data-[state=active]:border-emerald-400/50"
               >
                 <FileText className="w-4 h-4" />
                 Логи
