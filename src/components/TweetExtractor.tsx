@@ -64,7 +64,17 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
   };
 
   const normalizeTwitterUrl = (url: string): string => {
-    return url.replace('x.com', 'twitter.com');
+    return url.replace('twitter.com', 'x.com');
+  };
+
+  const extractHandleFromUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url.trim());
+      const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+      return pathParts[0] || '';
+    } catch (e) {
+      return '';
+    }
   };
 
   const handleExtractTweets = async () => {
@@ -75,7 +85,11 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         description: errorMsg,
         variant: "destructive"
       });
-      addLog('error', errorMsg, { errorType: 'MISSING_API_KEY', component: 'TweetExtractor' });
+      addLog('error', errorMsg, { 
+        errorType: 'MISSING_API_KEY', 
+        errorCode: 'APIFY_001',
+        component: 'TweetExtractor' 
+      });
       return;
     }
 
@@ -86,7 +100,11 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         description: "Введите URL для извлечения",
         variant: "destructive"
       });
-      addLog('error', errorMsg, { errorType: 'EMPTY_URL_LIST', component: 'TweetExtractor' });
+      addLog('error', errorMsg, { 
+        errorType: 'EMPTY_URL_LIST', 
+        errorCode: 'VALIDATION_001',
+        component: 'TweetExtractor' 
+      });
       return;
     }
 
@@ -96,7 +114,8 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       type: extractionType, 
       urlsCount: urls.split('\n').length, 
       requestId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      actor: 'web.harvester~twitter-scraper'
     });
 
     try {
@@ -108,55 +127,53 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         const errorMsg = `Неверные URL найдены: ${invalidUrls.join(', ')}`;
         addLog('error', errorMsg, { 
           errorType: 'INVALID_URLS', 
+          errorCode: 'VALIDATION_002',
           invalidUrls, 
           requestId 
         });
         throw new Error(errorMsg);
       }
 
-      // Нормализация и формирование startUrls в правильном формате
-      const startUrls = urlList.map(url => ({ 
-        url: normalizeTwitterUrl(url.trim())
-      }));
-
-      console.log('Formatted startUrls:', startUrls);
-      addLog('info', 'URLs подготовлены для извлечения', { startUrls, requestId });
-
-      // Определение правильного Actor ID в зависимости от типа извлечения
-      const actorId = extractionType === 'accounts' ? 'apidojo/twitter-user-tweets' : 'microworlds/tweet-details';
-
+      // Используем актуальный актор web.harvester~twitter-scraper
+      const actorId = 'web.harvester~twitter-scraper';
       let requestBody: any;
 
       if (extractionType === 'accounts') {
-        // Для аккаунтов используем другой формат
+        // Для аккаунтов используем handles
+        const handles = urlList.map(url => extractHandleFromUrl(normalizeTwitterUrl(url.trim())));
         requestBody = {
-          handles: startUrls.map(item => {
-            const url = new URL(item.url);
-            return url.pathname.split('/')[1]; // Извлекаем handle из URL
-          }),
+          handles: handles,
           tweetsDesired: tweetsPerAccount,
+          withReplies: false,
+          includeUserInfo: true,
           proxyConfig: {
-            useApifyProxy: true
+            useApifyProxy: true,
+            apifyProxyGroups: ["RESIDENTIAL"]
           }
         };
       } else {
-        // Для отдельных твитов
+        // Для отдельных твитов используем startUrls
+        const startUrls = urlList.map(url => normalizeTwitterUrl(url.trim()));
         requestBody = {
-          startUrls,
+          startUrls: startUrls,
+          tweetsDesired: 1,
+          withReplies: false,
+          includeUserInfo: true,
           proxyConfig: {
-            useApifyProxy: true
+            useApifyProxy: true,
+            apifyProxyGroups: ["RESIDENTIAL"]
           }
         };
       }
 
-      addLog('info', 'Отправка запроса в Apify API', { 
+      addLog('info', 'Отправка запроса в Apify API с обновленным актором', { 
         actorId, 
         requestBody, 
         requestId,
         apiEndpoint: `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`
       });
 
-      const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}`;
+      const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=300`;
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -170,7 +187,8 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         status: response.status, 
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries()),
-        requestId 
+        requestId,
+        actor: actorId
       });
 
       if (!response.ok) {
@@ -179,7 +197,9 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
           httpStatusText: response.statusText,
           requestId,
           apiUrl,
-          requestBody
+          requestBody,
+          errorCode: `HTTP_${response.status}`,
+          actor: actorId
         };
 
         try {
@@ -193,6 +213,7 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
             if (errorJson.error) {
               errorDetails.errorMessage = errorJson.error.message;
               errorDetails.errorType = errorJson.error.type;
+              errorDetails.errorCode = errorJson.error.type || `HTTP_${response.status}`;
             }
           } catch (e) {
             // Если не JSON, сохраняем как текст
@@ -215,26 +236,29 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       addLog('success', 'Данные успешно получены от Apify', { 
         dataLength: data.length, 
         sampleData: data.slice(0, 2),
-        requestId 
+        requestId,
+        actor: actorId
       });
 
+      // Обработка данных с нового актора
       const tweets: Tweet[] = data.map((item: any, index: number) => ({
-        id: item.id || item.tweet_id || `tweet-${index}`,
-        text: item.text || item.full_text || item.tweet_text || 'Текст недоступен',
-        url: item.url || item.tweet_url || `https://twitter.com/user/status/${item.id || item.tweet_id}`,
-        author: item.author?.username || item.user?.screen_name || item.username || 'Неизвестный автор',
-        createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+        id: item.id || item.tweetId || item.tweet_id || `tweet-${Date.now()}-${index}`,
+        text: item.text || item.full_text || item.tweet_text || item.content || 'Текст недоступен',
+        url: item.url || item.tweetUrl || item.tweet_url || `https://x.com/user/status/${item.id || item.tweetId}`,
+        author: item.author?.username || item.user?.screen_name || item.username || item.handle || 'Неизвестный автор',
+        createdAt: item.created_at || item.createdAt || item.timestamp || new Date().toISOString(),
       }));
 
       setExtractedTweets(tweets);
       addLog('success', `Успешно извлечено ${tweets.length} твитов`, { 
         tweets: tweets.map(t => ({ id: t.id, author: t.author })),
-        requestId 
+        requestId,
+        actor: actorId
       });
 
       toast({
         title: "Успех",
-        description: `Извлечено ${tweets.length} твитов`,
+        description: `Извлечено ${tweets.length} твитов с помощью обновленного актора`,
       });
 
     } catch (error) {
@@ -242,17 +266,24 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
         errorName: error instanceof Error ? error.name : 'UnknownError',
         errorStack: error instanceof Error ? error.stack : undefined,
+        errorCode: error instanceof Error && error.message.includes('Failed to fetch') ? 'CORS_FETCH_ERROR' : 'UNKNOWN_ERROR',
         requestId,
         timestamp: new Date().toISOString(),
         extractionType,
-        urlsProvided: urls.split('\n').filter(url => url.trim()).length
+        urlsProvided: urls.split('\n').filter(url => url.trim()).length,
+        actor: 'web.harvester~twitter-scraper'
       };
 
       addLog('error', 'Критическая ошибка при извлечении твитов', errorDetails);
       
+      let userMessage = errorDetails.errorMessage;
+      if (errorDetails.errorCode === 'CORS_FETCH_ERROR') {
+        userMessage = 'Ошибка сетевого запроса. Возможно проблема с CORS или актор временно недоступен.';
+      }
+      
       toast({
         title: "Ошибка извлечения",
-        description: errorDetails.errorMessage,
+        description: userMessage,
         variant: "destructive"
       });
     } finally {
@@ -468,7 +499,7 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         <CardHeader>
           <CardTitle className="text-cyan-100">Настройки извлечения</CardTitle>
           <CardDescription className="text-cyan-200/70">
-            Выберите тип извлечения и настройте параметры
+            Выберите тип извлечения и настройте параметры. Используется актуальный актор web.harvester~twitter-scraper
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -489,8 +520,8 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
             <Label className="text-cyan-100">URL ссылки (по одной на строку)</Label>
             <Textarea
               placeholder={extractionType === 'tweets' 
-                ? "https://twitter.com/username/status/1234567890\nhttps://twitter.com/username/status/0987654321" 
-                : "https://twitter.com/username1\nhttps://twitter.com/username2"
+                ? "https://x.com/username/status/1234567890\nhttps://x.com/username/status/0987654321" 
+                : "https://x.com/username1\nhttps://x.com/username2"
               }
               value={urls}
               onChange={(e) => setUrls(e.target.value)}
