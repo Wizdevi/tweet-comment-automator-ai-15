@@ -152,8 +152,10 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
           }
         };
       } else {
-        // Для отдельных твитов используем startUrls
-        const startUrls = urlList.map(url => normalizeTwitterUrl(url.trim()));
+        // ИСПРАВЛЕНИЕ: Для отдельных твитов используем правильный формат startUrls
+        const startUrls = urlList.map(url => ({
+          url: normalizeTwitterUrl(url.trim())
+        }));
         requestBody = {
           startUrls: startUrls,
           tweetsDesired: 1,
@@ -166,11 +168,12 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         };
       }
 
-      addLog('info', 'Отправка запроса в Apify API с обновленным актором', { 
+      addLog('info', 'Отправка запроса в Apify API с исправленным форматом startUrls', { 
         actorId, 
         requestBody, 
         requestId,
-        apiEndpoint: `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`
+        apiEndpoint: `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`,
+        urlFormat: extractionType === 'tweets' ? 'startUrls as objects with url field' : 'handles as strings'
       });
 
       const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=300`;
@@ -253,12 +256,13 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       addLog('success', `Успешно извлечено ${tweets.length} твитов`, { 
         tweets: tweets.map(t => ({ id: t.id, author: t.author })),
         requestId,
-        actor: actorId
+        actor: actorId,
+        inputFormat: 'corrected_startUrls_format'
       });
 
       toast({
         title: "Успех",
-        description: `Извлечено ${tweets.length} твитов с помощью обновленного актора`,
+        description: `Извлечено ${tweets.length} твитов с исправленным форматом URL`,
       });
 
     } catch (error) {
@@ -266,7 +270,8 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
         errorName: error instanceof Error ? error.name : 'UnknownError',
         errorStack: error instanceof Error ? error.stack : undefined,
-        errorCode: error instanceof Error && error.message.includes('Failed to fetch') ? 'CORS_FETCH_ERROR' : 'UNKNOWN_ERROR',
+        errorCode: error instanceof Error && error.message.includes('Failed to fetch') ? 'CORS_FETCH_ERROR' : 
+                  error instanceof Error && error.message.includes('invalid-input') ? 'INVALID_INPUT_FORMAT' : 'UNKNOWN_ERROR',
         requestId,
         timestamp: new Date().toISOString(),
         extractionType,
@@ -279,6 +284,8 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       let userMessage = errorDetails.errorMessage;
       if (errorDetails.errorCode === 'CORS_FETCH_ERROR') {
         userMessage = 'Ошибка сетевого запроса. Возможно проблема с CORS или актор временно недоступен.';
+      } else if (errorDetails.errorCode === 'INVALID_INPUT_FORMAT') {
+        userMessage = 'Ошибка формата входных данных. Проверьте правильность URL.';
       }
       
       toast({
