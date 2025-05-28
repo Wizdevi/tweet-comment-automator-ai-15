@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +54,19 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
     }
   });
 
+  const validateUrl = (url: string): boolean => {
+    try {
+      const urlObj = new URL(url.trim());
+      return urlObj.hostname === 'twitter.com' || urlObj.hostname === 'x.com';
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const normalizeTwitterUrl = (url: string): string => {
+    return url.replace('x.com', 'twitter.com');
+  };
+
   const handleExtractTweets = async () => {
     if (!apiKeys.apify) {
       toast({
@@ -79,18 +91,50 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
 
     try {
       const urlList = urls.split('\n').filter(url => url.trim());
-      const startUrls = urlList.map(url => ({ url: url.trim() }));
+      
+      // Валидация URL
+      const invalidUrls = urlList.filter(url => !validateUrl(url.trim()));
+      if (invalidUrls.length > 0) {
+        throw new Error(`Неверные URL: ${invalidUrls.join(', ')}`);
+      }
 
-      const requestBody = {
-        startUrls,
-        searchTerms: [],
-        maxTweets: extractionType === 'accounts' ? tweetsPerAccount : 1,
-        mode: extractionType === 'accounts' ? 'scrape' : 'post',
-      };
+      // Нормализация и формирование startUrls в правильном формате
+      const startUrls = urlList.map(url => ({ 
+        url: normalizeTwitterUrl(url.trim())
+      }));
 
-      addLog('info', 'Отправка запроса в Apify', requestBody);
+      console.log('Formatted startUrls:', startUrls);
 
-      const response = await fetch(`https://api.apify.com/v2/acts/web.harvester~twitter-scraper/run-sync-get-dataset-items?token=${apiKeys.apify}`, {
+      // Определение правильного Actor ID в зависимости от типа извлечения
+      const actorId = extractionType === 'accounts' ? 'apidojo/twitter-user-tweets' : 'microworlds/tweet-details';
+
+      let requestBody: any;
+
+      if (extractionType === 'accounts') {
+        // Для аккаунтов используем другой формат
+        requestBody = {
+          handles: startUrls.map(item => {
+            const url = new URL(item.url);
+            return url.pathname.split('/')[1]; // Извлекаем handle из URL
+          }),
+          tweetsDesired: tweetsPerAccount,
+          proxyConfig: {
+            useApifyProxy: true
+          }
+        };
+      } else {
+        // Для отдельных твитов
+        requestBody = {
+          startUrls,
+          proxyConfig: {
+            useApifyProxy: true
+          }
+        };
+      }
+
+      addLog('info', 'Отправка запроса в Apify', { actorId, requestBody });
+
+      const response = await fetch(`https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,18 +143,20 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Apify API Error:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}\n${errorText}`);
       }
 
       const data = await response.json();
       addLog('success', 'Данные получены от Apify', { count: data.length });
 
       const tweets: Tweet[] = data.map((item: any, index: number) => ({
-        id: item.id || `tweet-${index}`,
-        text: item.text || item.full_text || 'Текст недоступен',
-        url: item.url || `https://twitter.com/user/status/${item.id}`,
-        author: item.author?.username || item.user?.screen_name || 'Неизвестный автор',
-        createdAt: item.created_at || new Date().toISOString(),
+        id: item.id || item.tweet_id || `tweet-${index}`,
+        text: item.text || item.full_text || item.tweet_text || 'Текст недоступен',
+        url: item.url || item.tweet_url || `https://twitter.com/user/status/${item.id || item.tweet_id}`,
+        author: item.author?.username || item.user?.screen_name || item.username || 'Неизвестный автор',
+        createdAt: item.created_at || item.createdAt || new Date().toISOString(),
       }));
 
       setExtractedTweets(tweets);
@@ -323,6 +369,9 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
               onChange={(e) => setUrls(e.target.value)}
               className="bg-black/40 border-cyan-500/30 text-cyan-100 placeholder-cyan-300/50 min-h-[100px] focus:border-cyan-400"
             />
+            <p className="text-xs text-cyan-300/70">
+              Используйте только ссылки с twitter.com или x.com
+            </p>
           </div>
 
           {extractionType === 'accounts' && (
