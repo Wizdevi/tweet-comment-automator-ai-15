@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { TweetExtractor } from '@/components/TweetExtractor';
@@ -7,7 +7,7 @@ import { Settings } from '@/components/Settings';
 import { Logs } from '@/components/Logs';
 import { Twitter, Settings as SettingsIcon, FileText } from 'lucide-react';
 
-const Index = () => {
+const Index: React.FC = () => {
   const [activeTab, setActiveTab] = useState('extractor');
   const [apiKeys, setApiKeys] = useState({
     apify: '',
@@ -21,7 +21,7 @@ const Index = () => {
     details?: any;
   }>>([]);
 
-  const addLog = (type: 'info' | 'success' | 'warning' | 'error', message: string, details?: any) => {
+  const addLog = useCallback((type: 'info' | 'success' | 'warning' | 'error', message: string, details?: any) => {
     const newLog = {
       id: crypto.randomUUID(),
       timestamp: new Date(),
@@ -31,11 +31,11 @@ const Index = () => {
     };
     
     setLogs(prevLogs => {
-      const updatedLogs = [newLog, ...prevLogs].slice(0, 1000); // Keep last 1000 logs
+      const updatedLogs = [newLog, ...prevLogs].slice(0, 1000);
       localStorage.setItem('app_logs', JSON.stringify(updatedLogs));
       return updatedLogs;
     });
-  };
+  }, []);
 
   useEffect(() => {
     // Load saved API keys from localStorage
@@ -65,14 +65,20 @@ const Index = () => {
 
     // Welcome log
     addLog('info', 'Приложение запущено', 'Добро пожаловать в Tweet Comment Automator AI');
-  }, []);
+  }, [addLog]);
 
-  const saveApiKeys = (keys: { apify: string; openai: string }) => {
+  const saveApiKeys = useCallback((keys: { apify: string; openai: string }) => {
     setApiKeys(keys);
     localStorage.setItem('apify_api_key', keys.apify);
     localStorage.setItem('openai_api_key', keys.openai);
     addLog('success', 'API ключи сохранены', keys);
-  };
+  }, [addLog]);
+
+  const handleClearLogs = useCallback(() => {
+    setLogs([]);
+    localStorage.removeItem('app_logs');
+    addLog('info', 'Логи очищены');
+  }, [addLog]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 relative overflow-hidden">
@@ -129,11 +135,7 @@ const Index = () => {
             </TabsContent>
 
             <TabsContent value="logs" className="space-y-6">
-              <Logs logs={logs} onClearLogs={() => {
-                setLogs([]);
-                localStorage.removeItem('app_logs');
-                addLog('info', 'Логи очищены');
-              }} />
+              <Logs logs={logs} onClearLogs={handleClearLogs} />
             </TabsContent>
           </Tabs>
         </Card>
