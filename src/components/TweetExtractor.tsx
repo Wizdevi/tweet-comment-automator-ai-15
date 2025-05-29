@@ -64,65 +64,78 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
       return;
     }
 
-    setIsExtracting(true);
-    console.log('Starting tweet extraction, isExtracting set to true');
+    // Force reset state before starting
+    setIsExtracting(false);
+    console.log('Reset isExtracting to false before starting');
+    
+    // Use setTimeout to ensure state update is processed
+    setTimeout(async () => {
+      setIsExtracting(true);
+      console.log('Starting tweet extraction, isExtracting set to true');
 
-    try {
-      const tweets = await extractTweets(extractionType, urls, tweetsPerAccount, apiKeys, addLog);
-      
-      console.log('Tweets extracted successfully:', tweets.length);
-      setExtractedTweets(tweets);
-      
-      addLog('success', `Успешно извлечено ${tweets.length} твитов`, { 
-        tweets: tweets.map(t => ({ id: t.id, author: t.author })),
-        extractionType,
-        urlsProcessed: urls.split('\n').filter(url => url.trim()).length,
-        tweetsPerAccount: extractionType === 'accounts' ? tweetsPerAccount : 1
-      });
+      try {
+        const tweets = await extractTweets(extractionType, urls, tweetsPerAccount, apiKeys, addLog);
+        
+        console.log('Tweets extracted successfully:', tweets.length);
+        setExtractedTweets(tweets);
+        
+        addLog('success', `Успешно извлечено ${tweets.length} твитов`, { 
+          tweets: tweets.map(t => ({ id: t.id, author: t.author })),
+          extractionType,
+          urlsProcessed: urls.split('\n').filter(url => url.trim()).length,
+          tweetsPerAccount: extractionType === 'accounts' ? tweetsPerAccount : 1
+        });
 
-      toast({
-        title: "Успех",
-        description: `Извлечено ${tweets.length} твитов. Раздел генерации комментариев обновлен.`,
-      });
+        toast({
+          title: "Успех",
+          description: `Извлечено ${tweets.length} твитов. Раздел генерации комментариев обновлен.`,
+        });
 
-      if (onExtractSuccess && tweets.length > 0) {
+        if (onExtractSuccess && tweets.length > 0) {
+          setTimeout(() => {
+            onExtractSuccess();
+          }, 200);
+        }
+
+      } catch (error) {
+        console.error('Error during tweet extraction:', error);
+        const errorDetails = {
+          errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          errorStack: error instanceof Error ? error.stack : undefined,
+          errorCode: error instanceof Error && error.message.includes('Failed to fetch') ? 'CORS_FETCH_ERROR' : 
+                    error instanceof Error && error.message.includes('invalid-input') ? 'INVALID_INPUT_FORMAT' : 'UNKNOWN_ERROR',
+          timestamp: new Date().toISOString(),
+          extractionType,
+          urlsProvided: urls.split('\n').filter(url => url.trim()).length,
+          actor: 'web.harvester~twitter-scraper'
+        };
+
+        addLog('error', 'Критическая ошибка при извлечении твитов', errorDetails);
+        
+        let userMessage = errorDetails.errorMessage;
+        if (errorDetails.errorCode === 'CORS_FETCH_ERROR') {
+          userMessage = 'Ошибка сетевого запроса. Возможно проблема с CORS или актор временно недоступен.';
+        } else if (errorDetails.errorCode === 'INVALID_INPUT_FORMAT') {
+          userMessage = 'Ошибка формата входных данных. Проверьте правильность URL.';
+        }
+        
+        toast({
+          title: "Ошибка извлечения",
+          description: userMessage,
+          variant: "destructive"
+        });
+      } finally {
+        console.log('Tweet extraction finished, setting isExtracting to false');
+        setIsExtracting(false);
+        
+        // Double-check state reset after a short delay
         setTimeout(() => {
-          onExtractSuccess();
-        }, 200);
+          setIsExtracting(false);
+          console.log('Double-check: ensured isExtracting is false');
+        }, 100);
       }
-
-    } catch (error) {
-      console.error('Error during tweet extraction:', error);
-      const errorDetails = {
-        errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
-        errorName: error instanceof Error ? error.name : 'UnknownError',
-        errorStack: error instanceof Error ? error.stack : undefined,
-        errorCode: error instanceof Error && error.message.includes('Failed to fetch') ? 'CORS_FETCH_ERROR' : 
-                  error instanceof Error && error.message.includes('invalid-input') ? 'INVALID_INPUT_FORMAT' : 'UNKNOWN_ERROR',
-        timestamp: new Date().toISOString(),
-        extractionType,
-        urlsProvided: urls.split('\n').filter(url => url.trim()).length,
-        actor: 'web.harvester~twitter-scraper'
-      };
-
-      addLog('error', 'Критическая ошибка при извлечении твитов', errorDetails);
-      
-      let userMessage = errorDetails.errorMessage;
-      if (errorDetails.errorCode === 'CORS_FETCH_ERROR') {
-        userMessage = 'Ошибка сетевого запроса. Возможно проблема с CORS или актор временно недоступен.';
-      } else if (errorDetails.errorCode === 'INVALID_INPUT_FORMAT') {
-        userMessage = 'Ошибка формата входных данных. Проверьте правильность URL.';
-      }
-      
-      toast({
-        title: "Ошибка извлечения",
-        description: userMessage,
-        variant: "destructive"
-      });
-    } finally {
-      console.log('Tweet extraction finished, setting isExtracting to false');
-      setIsExtracting(false);
-    }
+    }, 10);
   };
 
   const handleGenerateComments = async () => {
