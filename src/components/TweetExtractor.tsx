@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,8 +43,9 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
   const [generatedComments, setGeneratedComments] = useState<GeneratedComment[]>([]);
   const [savedPrompts, setSavedPrompts] = useState<string[]>([]);
 
-  // Load saved prompts on component mount
-  useState(() => {
+  // Загрузка сохраненных данных при монтировании компонента
+  useEffect(() => {
+    // Загрузка сохраненных промптов
     const saved = localStorage.getItem('saved_prompts');
     if (saved) {
       try {
@@ -53,7 +54,82 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         console.error('Failed to load saved prompts:', e);
       }
     }
-  });
+
+    // Загрузка сохраненных данных формы
+    const savedUrls = localStorage.getItem('extractor_urls');
+    if (savedUrls) {
+      setUrls(savedUrls);
+    }
+
+    const savedExtractionType = localStorage.getItem('extractor_type');
+    if (savedExtractionType) {
+      setExtractionType(savedExtractionType as 'tweets' | 'accounts');
+    }
+
+    const savedTweetsPerAccount = localStorage.getItem('extractor_tweets_per_account');
+    if (savedTweetsPerAccount) {
+      setTweetsPerAccount(parseInt(savedTweetsPerAccount) || 5);
+    }
+
+    const savedPrompt = localStorage.getItem('extractor_prompt');
+    if (savedPrompt) {
+      setPrompt(savedPrompt);
+    }
+
+    const savedCommentsPerTweet = localStorage.getItem('extractor_comments_per_tweet');
+    if (savedCommentsPerTweet) {
+      setCommentsPerTweet(parseInt(savedCommentsPerTweet) || 1);
+    }
+
+    // Загрузка извлеченных твитов
+    const savedTweets = localStorage.getItem('extracted_tweets');
+    if (savedTweets) {
+      try {
+        setExtractedTweets(JSON.parse(savedTweets));
+      } catch (e) {
+        console.error('Failed to load extracted tweets:', e);
+      }
+    }
+
+    // Загрузка сгенерированных комментариев
+    const savedComments = localStorage.getItem('generated_comments');
+    if (savedComments) {
+      try {
+        setGeneratedComments(JSON.parse(savedComments));
+      } catch (e) {
+        console.error('Failed to load generated comments:', e);
+      }
+    }
+  }, []);
+
+  // Сохранение данных формы при изменении
+  useEffect(() => {
+    localStorage.setItem('extractor_urls', urls);
+  }, [urls]);
+
+  useEffect(() => {
+    localStorage.setItem('extractor_type', extractionType);
+  }, [extractionType]);
+
+  useEffect(() => {
+    localStorage.setItem('extractor_tweets_per_account', tweetsPerAccount.toString());
+  }, [tweetsPerAccount]);
+
+  useEffect(() => {
+    localStorage.setItem('extractor_prompt', prompt);
+  }, [prompt]);
+
+  useEffect(() => {
+    localStorage.setItem('extractor_comments_per_tweet', commentsPerTweet.toString());
+  }, [commentsPerTweet]);
+
+  useEffect(() => {
+    localStorage.setItem('extracted_tweets', JSON.stringify(extractedTweets));
+  }, [extractedTweets]);
+
+  useEffect(() => {
+    localStorage.setItem('generated_comments', JSON.stringify(generatedComments));
+  }, [generatedComments]);
 
   const validateUrl = (url: string): boolean => {
     try {
@@ -79,17 +155,22 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
   };
 
   const openTweetWithComment = (tweetUrl: string, comment: string) => {
-    // Формируем URL для Twitter с предзаполненным комментарием
-    const twitterUrl = new URL(tweetUrl);
-    const tweetId = twitterUrl.pathname.split('/').pop();
+    // Извлекаем ID твита из URL
+    const tweetId = tweetUrl.split('/').pop()?.split('?')[0];
+    
+    if (!tweetId) {
+      addLog('error', 'Не удалось извлечь ID твита', { tweetUrl });
+      return;
+    }
     
     // URL для ответа на твит с предзаполненным текстом
     const replyUrl = `https://twitter.com/intent/tweet?in_reply_to=${tweetId}&text=${encodeURIComponent(comment)}`;
     
     window.open(replyUrl, '_blank');
     
-    addLog('info', 'Переход к твиту с комментарием', {
+    addLog('info', 'Переход к твиту с предзаполненным комментарием', {
       tweetUrl,
+      tweetId,
       commentLength: comment.length,
       replyUrl
     });
@@ -160,12 +241,10 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         throw new Error(errorMsg);
       }
 
-      // Используем актуальный актор web.harvester~twitter-scraper
       const actorId = 'web.harvester~twitter-scraper';
       let requestBody: any;
 
       if (extractionType === 'accounts') {
-        // Для аккаунтов используем handles
         const handles = urlList.map(url => extractHandleFromUrl(normalizeTwitterUrl(url.trim())));
         requestBody = {
           handles: handles,
@@ -178,7 +257,6 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           }
         };
       } else {
-        // Для отдельных твитов используем правильный формат startUrls
         const startUrls = urlList.map(url => ({
           url: normalizeTwitterUrl(url.trim())
         }));
@@ -235,7 +313,6 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           const errorText = await response.text();
           errorDetails.responseBody = errorText;
           
-          // Попытка распарсить JSON ошибку
           try {
             const errorJson = JSON.parse(errorText);
             errorDetails.parsedError = errorJson;
@@ -245,7 +322,6 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
               errorDetails.errorCode = errorJson.error.type || `HTTP_${response.status}`;
             }
           } catch (e) {
-            // Если не JSON, сохраняем как текст
             errorDetails.rawError = errorText;
           }
         } catch (e) {
@@ -269,7 +345,6 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         actor: actorId
       });
 
-      // Обработка данных с нового актора
       const tweets: Tweet[] = data.map((item: any, index: number) => ({
         id: item.id || item.tweetId || item.tweet_id || `tweet-${Date.now()}-${index}`,
         text: item.text || item.full_text || item.tweet_text || item.content || 'Текст недоступен',
@@ -291,19 +366,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         description: `Извлечено ${tweets.length} твитов. Раздел генерации комментариев доступен ниже.`,
       });
 
-      // Улучшенный переход к разделу генерации
       if (onExtractSuccess && tweets.length > 0) {
-        setTimeout(() => {
-          const commentSection = document.querySelector('[data-section="comments"]');
-          if (commentSection) {
-            commentSection.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'start',
-              inline: 'nearest'
-            });
-            addLog('success', 'Переход к разделу генерации комментариев выполнен');
-          }
-        }, 500);
         onExtractSuccess();
       }
 
@@ -544,18 +607,18 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
   return (
     <div className="space-y-6">
       {/* Extraction Settings */}
-      <Card className="bg-white/90 backdrop-blur-sm border-slate-300 shadow-lg">
-        <CardHeader className="bg-slate-50/80 border-b border-slate-200">
-          <CardTitle className="text-slate-900 font-semibold">Параметры извлечения</CardTitle>
-          <CardDescription className="text-slate-600">
+      <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg">
+        <CardHeader className="bg-gray-700/80 border-b border-gray-600">
+          <CardTitle className="text-white font-semibold">Параметры извлечения</CardTitle>
+          <CardDescription className="text-gray-300">
             Настройте параметры для извлечения данных из Twitter
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 p-6">
           <div className="space-y-2">
-            <Label className="text-slate-700 font-medium">Тип извлечения</Label>
+            <Label className="text-gray-200 font-medium">Тип извлечения</Label>
             <Select value={extractionType} onValueChange={(value: 'tweets' | 'accounts') => setExtractionType(value)}>
-              <SelectTrigger className="bg-white border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -566,7 +629,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           </div>
 
           <div className="space-y-2">
-            <Label className="text-slate-700 font-medium">URL ссылки (по одной на строку)</Label>
+            <Label className="text-gray-200 font-medium">URL ссылки (по одной на строку)</Label>
             <Textarea
               placeholder={extractionType === 'tweets' 
                 ? "https://x.com/username/status/1234567890\nhttps://x.com/username/status/0987654321" 
@@ -574,23 +637,23 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
               }
               value={urls}
               onChange={(e) => setUrls(e.target.value)}
-              className="bg-white border-slate-300 text-slate-900 placeholder-slate-500 min-h-[100px] focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 min-h-[100px] focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-gray-400">
               Поддерживаются ссылки с twitter.com и x.com
             </p>
           </div>
 
           {extractionType === 'accounts' && (
             <div className="space-y-2">
-              <Label className="text-slate-700 font-medium">Количество твитов с каждого аккаунта</Label>
+              <Label className="text-gray-200 font-medium">Количество твитов с каждого аккаунта</Label>
               <Input
                 type="number"
                 min="1"
                 max="100"
                 value={tweetsPerAccount}
                 onChange={(e) => setTweetsPerAccount(parseInt(e.target.value) || 5)}
-                className="bg-white border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           )}
@@ -598,7 +661,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           <Button 
             onClick={handleExtractTweets}
             disabled={isExtracting || !apiKeys.apify}
-            className="w-full"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
             {isExtracting ? (
               <>Извлечение данных...</>
@@ -614,18 +677,18 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
       {/* AI Comment Generation */}
       {extractedTweets.length > 0 && (
-        <Card className="bg-white/90 backdrop-blur-sm border-slate-300 shadow-lg" data-section="comments">
-          <CardHeader className="bg-slate-50/80 border-b border-slate-200">
-            <CardTitle className="text-slate-900 font-semibold">Генерация комментариев ИИ</CardTitle>
-            <CardDescription className="text-slate-600">
+        <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg" data-section="comments">
+          <CardHeader className="bg-gray-700/80 border-b border-gray-600">
+            <CardTitle className="text-white font-semibold">Генерация комментариев ИИ</CardTitle>
+            <CardDescription className="text-gray-300">
               Настройте параметры для автоматической генерации комментариев
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 p-6">
             <div className="space-y-2">
-              <Label className="text-slate-700 font-medium">Выбор промпта</Label>
+              <Label className="text-gray-200 font-medium">Выбор промпта</Label>
               <Select value={prompt} onValueChange={setPrompt}>
-                <SelectTrigger className="bg-white border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                <SelectTrigger className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                   <SelectValue placeholder="Выберите сохраненный промпт или введите новый" />
                 </SelectTrigger>
                 <SelectContent>
@@ -639,19 +702,19 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-700 font-medium">Промпт для генерации комментариев</Label>
+              <Label className="text-gray-200 font-medium">Промпт для генерации комментариев</Label>
               <div className="flex gap-2">
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900 placeholder-slate-500 min-h-[80px] focus:border-blue-500 focus:ring-1 focus:ring-blue-500 flex-1"
+                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 min-h-[80px] focus:border-blue-500 focus:ring-1 focus:ring-blue-500 flex-1"
                   placeholder="Введите инструкции для ИИ..."
                 />
                 <Button
                   onClick={savePrompt}
                   variant="outline"
                   size="sm"
-                  className="h-fit"
+                  className="h-fit border-gray-600 text-gray-300 hover:bg-gray-700"
                 >
                   <Save className="w-4 h-4" />
                 </Button>
@@ -659,21 +722,21 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-700 font-medium">Количество комментариев на твит</Label>
+              <Label className="text-gray-200 font-medium">Количество комментариев на твит</Label>
               <Input
                 type="number"
                 min="1"
                 max="5"
                 value={commentsPerTweet}
                 onChange={(e) => setCommentsPerTweet(parseInt(e.target.value) || 1)}
-                className="bg-white border-slate-300 text-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
 
             <Button 
               onClick={handleGenerateComments}
               disabled={isGenerating || !apiKeys.openai}
-              className="w-full"
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
             >
               {isGenerating ? (
                 <>Генерация комментариев...</>
@@ -690,11 +753,11 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
       {/* Results */}
       {generatedComments.length > 0 && (
-        <Card className="bg-white border-gray-300 shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between bg-gray-50 border-b border-gray-200">
+        <Card className="bg-gray-800 border-gray-600 shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between bg-gray-700 border-b border-gray-600">
             <div>
-              <CardTitle className="text-gray-900 font-semibold">Результаты работы</CardTitle>
-              <CardDescription className="text-gray-600">
+              <CardTitle className="text-white font-semibold">Результаты работы</CardTitle>
+              <CardDescription className="text-gray-300">
                 Сгенерированные комментарии готовы к использованию
               </CardDescription>
             </div>
@@ -702,7 +765,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
               onClick={downloadJson}
               variant="outline"
               size="sm"
-              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               <Download className="mr-2 h-4 w-4" />
               Экспорт данных
@@ -710,11 +773,11 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           </CardHeader>
           <CardContent className="space-y-4 p-6">
             {generatedComments.map((comment, index) => (
-              <Card key={index} className="bg-gray-50 border-gray-200">
+              <Card key={index} className="bg-gray-700 border-gray-600">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <p className="text-gray-700 text-sm mb-2">
+                      <p className="text-gray-300 text-sm mb-2">
                         {comment.expanded ? comment.tweetText : `${comment.tweetText.slice(0, 100)}${comment.tweetText.length > 100 ? '...' : ''}`}
                       </p>
                       {comment.tweetText.length > 100 && (
@@ -722,7 +785,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleExpanded(index)}
-                          className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+                          className="text-blue-400 hover:text-blue-300 p-0 h-auto"
                         >
                           {comment.expanded ? (
                             <>
@@ -742,22 +805,22 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
                       variant="outline"
                       size="sm"
                       onClick={() => openOriginalTweet(comment.tweetUrl)}
-                      className="flex-shrink-0 ml-2 border-gray-300 text-gray-700 hover:bg-gray-50"
+                      className="flex-shrink-0 ml-2 border-gray-600 text-gray-300 hover:bg-gray-600"
                     >
                       <ExternalLink className="w-4 h-4" />
                     </Button>
                   </div>
 
-                  <Separator className="bg-gray-200" />
+                  <Separator className="bg-gray-600" />
 
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
-                      <p className="text-gray-900 font-medium flex-1 mr-4">{comment.comment}</p>
+                      <p className="text-white font-medium flex-1 mr-4">{comment.comment}</p>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => copyToClipboard(comment.comment)}
-                        className="flex-shrink-0 border-gray-300 text-gray-700 hover:bg-gray-50"
+                        className="flex-shrink-0 border-gray-600 text-gray-300 hover:bg-gray-600"
                       >
                         <Copy className="w-4 h-4" />
                       </Button>
@@ -780,19 +843,19 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
       {/* Extracted Tweets Summary */}
       {extractedTweets.length > 0 && generatedComments.length === 0 && (
-        <Card className="bg-white border-gray-300 shadow-md">
+        <Card className="bg-gray-800 border-gray-600 shadow-md">
           <CardHeader>
-            <CardTitle className="text-gray-900 font-semibold">Извлеченные твиты</CardTitle>
-            <CardDescription className="text-gray-600">
+            <CardTitle className="text-white font-semibold">Извлеченные твиты</CardTitle>
+            <CardDescription className="text-gray-300">
               Найдено {extractedTweets.length} твитов
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {extractedTweets.map((tweet, index) => (
-                <div key={tweet.id} className="bg-gray-50 rounded p-3 border border-gray-200">
-                  <p className="text-gray-700 text-sm mb-1">@{tweet.author}</p>
-                  <p className="text-gray-900 text-sm">{tweet.text.slice(0, 100)}...</p>
+                <div key={tweet.id} className="bg-gray-700 rounded p-3 border border-gray-600">
+                  <p className="text-gray-300 text-sm mb-1">@{tweet.author}</p>
+                  <p className="text-white text-sm">{tweet.text.slice(0, 100)}...</p>
                 </div>
               ))}
             </div>
