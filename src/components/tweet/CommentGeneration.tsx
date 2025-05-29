@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,8 @@ export const CommentGeneration = ({
   onSavePrompt,
   extractedTweets
 }: CommentGenerationProps) => {
+  console.log('CommentGeneration render - extractedTweets:', extractedTweets.length);
+
   return (
     <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg" data-section="comments">
       <CardHeader className="bg-gray-700/80 border-b border-gray-600">
@@ -39,7 +42,7 @@ export const CommentGeneration = ({
         <CardDescription className="text-gray-300">
           {extractedTweets.length > 0 
             ? `Найдено ${extractedTweets.length} твитов. Настройте параметры для автоматической генерации комментариев.`
-            : "Сначала извлеките твиты для генерации комментариев"
+            : "Извлеките твиты для генерации комментариев"
           }
         </CardDescription>
       </CardHeader>

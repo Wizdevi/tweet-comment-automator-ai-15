@@ -65,11 +65,14 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
     }
 
     setIsExtracting(true);
+    console.log('Starting tweet extraction, isExtracting set to true');
 
     try {
       const tweets = await extractTweets(extractionType, urls, tweetsPerAccount, apiKeys, addLog);
       
+      console.log('Tweets extracted successfully:', tweets.length);
       setExtractedTweets(tweets);
+      
       addLog('success', `Успешно извлечено ${tweets.length} твитов`, { 
         tweets: tweets.map(t => ({ id: t.id, author: t.author })),
         extractionType,
@@ -79,7 +82,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
       toast({
         title: "Успех",
-        description: `Извлечено ${tweets.length} твитов. Раздел генерации комментариев доступен ниже.`,
+        description: `Извлечено ${tweets.length} твитов. Раздел генерации комментариев обновлен.`,
       });
 
       if (onExtractSuccess && tweets.length > 0) {
@@ -89,6 +92,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
       }
 
     } catch (error) {
+      console.error('Error during tweet extraction:', error);
       const errorDetails = {
         errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
         errorName: error instanceof Error ? error.name : 'UnknownError',
@@ -116,6 +120,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         variant: "destructive"
       });
     } finally {
+      console.log('Tweet extraction finished, setting isExtracting to false');
       setIsExtracting(false);
     }
   };
@@ -212,6 +217,8 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
   const handleOpenOriginalTweet = (tweetUrl: string) => {
     openOriginalTweet(tweetUrl, addLog);
   };
+
+  console.log('TweetExtractor render - extractedTweets:', extractedTweets.length, 'isExtracting:', isExtracting);
 
   return (
     <div className="space-y-6">
