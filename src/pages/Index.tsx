@@ -13,6 +13,7 @@ const Index: React.FC = () => {
     apify: '',
     openai: ''
   });
+  const [apiKeysLoaded, setApiKeysLoaded] = useState(false);
   const [logs, setLogs] = useState<Array<{
     id: string;
     timestamp: Date;
@@ -62,12 +63,18 @@ const Index: React.FC = () => {
     const savedApifyKey = localStorage.getItem('apify_api_key');
     const savedOpenAIKey = localStorage.getItem('openai_api_key');
     
-    if (savedApifyKey || savedOpenAIKey) {
-      setApiKeys({
-        apify: savedApifyKey || '',
-        openai: savedOpenAIKey || ''
-      });
-    }
+    console.log('Loading API keys from localStorage:', { 
+      apifyExists: !!savedApifyKey, 
+      openaiExists: !!savedOpenAIKey 
+    });
+    
+    setApiKeys({
+      apify: savedApifyKey || '',
+      openai: savedOpenAIKey || ''
+    });
+    
+    // Mark API keys as loaded
+    setApiKeysLoaded(true);
 
     // Load saved logs
     const savedLogs = localStorage.getItem('app_logs');
@@ -99,6 +106,8 @@ const Index: React.FC = () => {
     localStorage.removeItem('app_logs');
     addLog('info', 'Логи очищены');
   }, [addLog]);
+
+  console.log('Index render - apiKeys loaded:', apiKeysLoaded, 'apify key exists:', !!apiKeys.apify);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
@@ -139,11 +148,13 @@ const Index: React.FC = () => {
             </TabsList>
 
             <TabsContent value="extractor" className="space-y-6">
-              <TweetExtractor 
-                apiKeys={apiKeys} 
-                addLog={addLog} 
-                onExtractSuccess={handleExtractSuccess}
-              />
+              {apiKeysLoaded && (
+                <TweetExtractor 
+                  apiKeys={apiKeys} 
+                  addLog={addLog} 
+                  onExtractSuccess={handleExtractSuccess}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6">
