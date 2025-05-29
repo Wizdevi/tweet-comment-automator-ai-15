@@ -77,6 +77,31 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
     }
   };
 
+  const openTweetWithComment = (tweetUrl: string, comment: string) => {
+    // Формируем URL для Twitter с предзаполненным комментарием
+    const twitterUrl = new URL(tweetUrl);
+    const tweetId = twitterUrl.pathname.split('/').pop();
+    
+    // URL для ответа на твит с предзаполненным текстом
+    const replyUrl = `https://twitter.com/intent/tweet?in_reply_to=${tweetId}&text=${encodeURIComponent(comment)}`;
+    
+    window.open(replyUrl, '_blank');
+    
+    addLog('info', 'Переход к твиту с комментарием', {
+      tweetUrl,
+      commentLength: comment.length,
+      replyUrl
+    });
+  };
+
+  const openOriginalTweet = (tweetUrl: string) => {
+    window.open(tweetUrl, '_blank');
+    
+    addLog('info', 'Переход к оригинальному твиту', {
+      tweetUrl
+    });
+  };
+
   const handleExtractTweets = async () => {
     if (!apiKeys.apify) {
       const errorMsg = 'Apify API ключ не найден';
@@ -556,7 +581,8 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
           <Button 
             onClick={handleExtractTweets}
             disabled={isExtracting || !apiKeys.apify}
-            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white border border-cyan-500/50 shadow-lg shadow-cyan-500/20"
+            className="w-full"
+            variant="default"
           >
             {isExtracting ? (
               <>Извлечение...</>
@@ -609,7 +635,7 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
                   onClick={savePrompt}
                   variant="outline"
                   size="sm"
-                  className="border-purple-500/30 text-purple-200 hover:bg-purple-500/20 h-fit"
+                  className="h-fit"
                 >
                   <Save className="w-4 h-4" />
                 </Button>
@@ -631,7 +657,8 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
             <Button 
               onClick={handleGenerateComments}
               disabled={isGenerating || !apiKeys.openai}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white border border-purple-500/50 shadow-lg shadow-purple-500/20"
+              className="w-full"
+              variant="secondary"
             >
               {isGenerating ? (
                 <>Генерация...</>
@@ -660,7 +687,6 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
               onClick={downloadJson}
               variant="outline"
               size="sm"
-              className="border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20"
             >
               <Download className="mr-2 h-4 w-4" />
               Скачать JSON
@@ -696,6 +722,14 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
                         </Button>
                       )}
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openOriginalTweet(comment.tweetUrl)}
+                      className="flex-shrink-0 ml-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
                   </div>
 
                   <Separator className="bg-emerald-500/20" />
@@ -707,17 +741,16 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
                         variant="outline"
                         size="sm"
                         onClick={() => copyToClipboard(comment.comment)}
-                        className="border-emerald-500/30 text-emerald-200 hover:bg-emerald-500/20 flex-shrink-0"
+                        className="flex-shrink-0"
                       >
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
 
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(`${comment.tweetUrl}?text=${encodeURIComponent(comment.comment)}`, '_blank')}
-                      className="border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/20 w-full shadow-md"
+                      onClick={() => openTweetWithComment(comment.tweetUrl, comment.comment)}
+                      className="w-full"
+                      variant="default"
                     >
                       <ExternalLink className="mr-2 h-4 w-4" />
                       Перейти к твиту с комментарием
