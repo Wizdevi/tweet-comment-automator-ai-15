@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Play, Save } from 'lucide-react';
+import { Tweet } from '@/types/tweet';
 
 interface CommentGenerationProps {
   prompt: string;
@@ -17,6 +17,7 @@ interface CommentGenerationProps {
   hasApiKey: boolean;
   onGenerate: () => void;
   onSavePrompt: () => void;
+  extractedTweets: Tweet[];
 }
 
 export const CommentGeneration = ({
@@ -28,17 +29,37 @@ export const CommentGeneration = ({
   isGenerating,
   hasApiKey,
   onGenerate,
-  onSavePrompt
+  onSavePrompt,
+  extractedTweets
 }: CommentGenerationProps) => {
   return (
     <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg" data-section="comments">
       <CardHeader className="bg-gray-700/80 border-b border-gray-600">
         <CardTitle className="text-white font-semibold">Генерация комментариев ИИ</CardTitle>
         <CardDescription className="text-gray-300">
-          Настройте параметры для автоматической генерации комментариев
+          {extractedTweets.length > 0 
+            ? `Найдено ${extractedTweets.length} твитов. Настройте параметры для автоматической генерации комментариев.`
+            : "Сначала извлеките твиты для генерации комментариев"
+          }
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 p-6">
+        {extractedTweets.length > 0 && (
+          <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
+            <p className="text-sm text-gray-300 mb-2">Извлеченные твиты:</p>
+            <div className="space-y-2 max-h-32 overflow-y-auto">
+              {extractedTweets.slice(0, 5).map((tweet, index) => (
+                <div key={tweet.id} className="text-xs text-gray-400 bg-gray-800/50 rounded p-2">
+                  <span className="font-semibold">@{tweet.author}:</span> {tweet.text.slice(0, 60)}...
+                </div>
+              ))}
+              {extractedTweets.length > 5 && (
+                <p className="text-xs text-gray-500">И еще {extractedTweets.length - 5} твитов...</p>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label className="text-gray-200 font-medium">Выбор промпта</Label>
           <Select value={prompt} onValueChange={setPrompt}>
@@ -89,15 +110,17 @@ export const CommentGeneration = ({
 
         <Button 
           onClick={onGenerate}
-          disabled={isGenerating || !hasApiKey}
-          className="w-full bg-green-600 hover:bg-green-700 text-white"
+          disabled={isGenerating || !hasApiKey || extractedTweets.length === 0}
+          className="w-full bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
         >
           {isGenerating ? (
             <>Генерация комментариев...</>
+          ) : extractedTweets.length === 0 ? (
+            <>Сначала извлеките твиты</>
           ) : (
             <>
               <Play className="mr-2 h-4 w-4" />
-              Сгенерировать комментарии
+              Сгенерировать комментарии для {extractedTweets.length} твитов
             </>
           )}
         </Button>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { TweetExtractorProps } from '@/types/tweet';
@@ -228,19 +227,18 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         onExtract={handleExtractTweets}
       />
 
-      {extractedTweets.length > 0 && (
-        <CommentGeneration
-          prompt={prompt}
-          setPrompt={setPrompt}
-          commentsPerTweet={commentsPerTweet}
-          setCommentsPerTweet={setCommentsPerTweet}
-          savedPrompts={savedPrompts}
-          isGenerating={isGenerating}
-          hasApiKey={!!apiKeys.openai}
-          onGenerate={handleGenerateComments}
-          onSavePrompt={handleSavePrompt}
-        />
-      )}
+      <CommentGeneration
+        prompt={prompt}
+        setPrompt={setPrompt}
+        commentsPerTweet={commentsPerTweet}
+        setCommentsPerTweet={setCommentsPerTweet}
+        savedPrompts={savedPrompts}
+        isGenerating={isGenerating}
+        hasApiKey={!!apiKeys.openai}
+        onGenerate={handleGenerateComments}
+        onSavePrompt={handleSavePrompt}
+        extractedTweets={extractedTweets}
+      />
 
       <TweetResults
         generatedComments={generatedComments}
