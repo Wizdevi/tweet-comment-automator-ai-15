@@ -36,20 +36,8 @@ const Index: React.FC = () => {
     });
   }, []);
 
-  // Добавляем функцию для переключения на вкладку генерации комментариев
   const handleExtractSuccess = useCallback(() => {
-    // Принудительно скроллим к секции генерации комментариев
-    setTimeout(() => {
-      const commentSection = document.querySelector('[data-section="comments"]');
-      if (commentSection) {
-        commentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        addLog('info', 'Автоматический переход к секции генерации комментариев');
-      } else {
-        // Если секция не найдена, скроллим к низу страницы
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        addLog('info', 'Скролл к низу страницы для генерации комментариев');
-      }
-    }, 300);
+    addLog('info', 'Твиты извлечены - раздел генерации комментариев доступен');
   }, [addLog]);
 
   useEffect(() => {
@@ -96,37 +84,74 @@ const Index: React.FC = () => {
   }, [addLog]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Technology network background */}
+      <div 
+        className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.3) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(37, 99, 235, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 40% 60%, rgba(29, 78, 216, 0.1) 0%, transparent 50%)
+          `
+        }}
+      >
+        {/* Network pattern overlay */}
+        <div className="absolute inset-0 opacity-20">
+          <svg width="100%" height="100%" className="absolute inset-0">
+            <defs>
+              <pattern id="network" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+                <g stroke="rgba(255,255,255,0.3)" strokeWidth="1" fill="none">
+                  <circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.6)"/>
+                  <circle cx="80" cy="20" r="2" fill="rgba(255,255,255,0.6)"/>
+                  <circle cx="50" cy="60" r="2" fill="rgba(255,255,255,0.6)"/>
+                  <circle cx="20" cy="80" r="2" fill="rgba(255,255,255,0.6)"/>
+                  <circle cx="80" cy="80" r="2" fill="rgba(255,255,255,0.6)"/>
+                  <line x1="20" y1="20" x2="80" y2="20"/>
+                  <line x1="20" y1="20" x2="50" y2="60"/>
+                  <line x1="80" y1="20" x2="50" y2="60"/>
+                  <line x1="50" y1="60" x2="20" y2="80"/>
+                  <line x1="50" y1="60" x2="80" y2="80"/>
+                  <line x1="20" y1="80" x2="80" y2="80"/>
+                </g>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#network)"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 container mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
             Tweet Comment Automator AI
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-blue-100 max-w-2xl mx-auto drop-shadow">
             Профессиональное решение для автоматизированного извлечения твитов и генерации комментариев
           </p>
         </div>
 
-        <Card className="max-w-7xl mx-auto bg-white border-gray-200 shadow-lg">
+        <Card className="max-w-7xl mx-auto bg-white/95 backdrop-blur-sm border-slate-200 shadow-2xl">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="p-6">
-            <TabsList className="grid w-full grid-cols-3 mb-8 bg-gray-100 border border-gray-300">
+            <TabsList className="grid w-full grid-cols-3 mb-8 bg-slate-100 border border-slate-300">
               <TabsTrigger 
                 value="extractor" 
-                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-gray-700 hover:text-gray-900 hover:bg-gray-200 transition-all duration-200 flex items-center gap-2 font-medium"
+                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-700 hover:text-slate-900 hover:bg-slate-200 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <Twitter className="w-4 h-4" />
                 Извлечение твитов
               </TabsTrigger>
               <TabsTrigger 
                 value="settings" 
-                className="data-[state=active]:bg-slate-600 data-[state=active]:text-white text-gray-700 hover:text-gray-900 hover:bg-gray-200 transition-all duration-200 flex items-center gap-2 font-medium"
+                className="data-[state=active]:bg-slate-600 data-[state=active]:text-white text-slate-700 hover:text-slate-900 hover:bg-slate-200 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <SettingsIcon className="w-4 h-4" />
                 Настройки
               </TabsTrigger>
               <TabsTrigger 
                 value="logs" 
-                className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-gray-700 hover:text-gray-900 hover:bg-gray-200 transition-all duration-200 flex items-center gap-2 font-medium"
+                className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-slate-700 hover:text-slate-900 hover:bg-slate-200 transition-all duration-200 flex items-center gap-2 font-medium"
               >
                 <FileText className="w-4 h-4" />
                 Логи
