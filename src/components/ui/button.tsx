@@ -6,19 +6,19 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-lg border",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 shadow-sm border",
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 border-blue-500 shadow-blue-500/25",
+        default: "bg-blue-600 text-white hover:bg-blue-700 border-blue-600 font-medium",
         destructive:
-          "bg-gradient-to-r from-red-600 to-red-700 text-white hover:from-red-700 hover:to-red-800 border-red-500 shadow-red-500/25",
+          "bg-red-600 text-white hover:bg-red-700 border-red-600 font-medium",
         outline:
-          "border-2 border-cyan-500 bg-black/40 text-cyan-100 hover:bg-cyan-600 hover:text-white shadow-cyan-500/25 backdrop-blur-sm",
+          "border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900",
         secondary:
-          "bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 border-purple-500 shadow-purple-500/25",
-        ghost: "hover:bg-accent hover:text-accent-foreground border-transparent",
-        link: "text-primary underline-offset-4 hover:underline border-transparent shadow-none",
+          "bg-gray-600 text-white hover:bg-gray-700 border-gray-600 font-medium",
+        ghost: "hover:bg-gray-100 hover:text-gray-900 border-transparent",
+        link: "text-blue-600 underline-offset-4 hover:underline border-transparent shadow-none font-normal",
       },
       size: {
         default: "h-10 px-4 py-2",
