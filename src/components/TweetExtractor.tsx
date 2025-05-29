@@ -100,6 +100,14 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         console.error('Failed to load generated comments:', e);
       }
     }
+
+    // Загрузка состояния извлечения (для корректной работы кнопки)
+    const savedExtracting = localStorage.getItem('is_extracting');
+    if (savedExtracting === 'true') {
+      setIsExtracting(true);
+      // Сбрасываем состояние извлечения при перезагрузке страницы
+      localStorage.removeItem('is_extracting');
+    }
   }, []);
 
   // Сохранение данных формы при изменении
@@ -130,6 +138,15 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
   useEffect(() => {
     localStorage.setItem('generated_comments', JSON.stringify(generatedComments));
   }, [generatedComments]);
+
+  // Сохраняем состояние извлечения для корректной работы кнопки при переключении вкладок
+  useEffect(() => {
+    if (isExtracting) {
+      localStorage.setItem('is_extracting', 'true');
+    } else {
+      localStorage.removeItem('is_extracting');
+    }
+  }, [isExtracting]);
 
   const validateUrl = (url: string): boolean => {
     try {
@@ -242,25 +259,120 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
       }
 
       const actorId = 'web.harvester~twitter-scraper';
-      let requestBody: any;
+      let tweets: Tweet[] = [];
 
       if (extractionType === 'accounts') {
-        const handles = urlList.map(url => extractHandleFromUrl(normalizeTwitterUrl(url.trim())));
-        requestBody = {
-          handles: handles,
-          tweetsDesired: tweetsPerAccount,
-          withReplies: false,
-          includeUserInfo: true,
-          proxyConfig: {
-            useApifyProxy: true,
-            apifyProxyGroups: ["RESIDENTIAL"]
+        // Для аккаунтов обрабатываем каждый URL отдельно для корректного количества твитов
+        for (const url of urlList) {
+          const handle = extractHandleFromUrl(normalizeTwitterUrl(url.trim()));
+          const requestBody = {
+            handles: [handle],
+            tweetsDesired: tweetsPerAccount,
+            withReplies: false,
+            includeUserInfo: true,
+            proxyConfig: {
+              useApifyProxy: true,
+              apifyProxyGroups: ["RESIDENTIAL"]
+            }
+          };
+
+          addLog('info', `Извлечение ${tweetsPerAccount} твитов с аккаунта ${handle}`, { 
+            actorId, 
+            requestBody, 
+            requestId,
+            apiEndpoint: `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`,
+            handle
+          });
+
+          const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=300`;
+          
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          addLog('info', `Получен ответ от Apify API для ${handle}`, { 
+            status: response.status, 
+            statusText: response.statusText,
+            headers: Object.fromEntries(response.headers.entries()),
+            requestId,
+            actor: actorId,
+            handle
+          });
+
+          if (!response.ok) {
+            let errorDetails: any = {
+              httpStatus: response.status,
+              httpStatusText: response.statusText,
+              requestId,
+              apiUrl,
+              requestBody,
+              errorCode: `HTTP_${response.status}`,
+              actor: actorId,
+              handle
+            };
+
+            try {
+              const errorText = await response.text();
+              errorDetails.responseBody = errorText;
+              
+              try {
+                const errorJson = JSON.parse(errorText);
+                errorDetails.parsedError = errorJson;
+                if (errorJson.error) {
+                  errorDetails.errorMessage = errorJson.error.message;
+                  errorDetails.errorType = errorJson.error.type;
+                  errorDetails.errorCode = errorJson.error.type || `HTTP_${response.status}`;
+                }
+              } catch (e) {
+                errorDetails.rawError = errorText;
+              }
+            } catch (e) {
+              errorDetails.responseReadError = e.message;
+            }
+
+            addLog('error', `Apify API вернул ошибку для ${handle}: HTTP ${response.status}`, errorDetails);
+            
+            const userErrorMsg = errorDetails.errorMessage || 
+                               errorDetails.rawError || 
+                               `HTTP ${response.status}: ${response.statusText}`;
+            
+            throw new Error(`Ошибка Apify API для ${handle}: ${userErrorMsg}`);
           }
-        };
+
+          const data = await response.json();
+          addLog('success', `Данные успешно получены от Apify для ${handle}`, { 
+            dataLength: data.length, 
+            sampleData: data.slice(0, 2),
+            requestId,
+            actor: actorId,
+            handle
+          });
+
+          const accountTweets: Tweet[] = data.map((item: any, index: number) => ({
+            id: item.id || item.tweetId || item.tweet_id || `tweet-${Date.now()}-${index}`,
+            text: item.text || item.full_text || item.tweet_text || item.content || 'Текст недоступен',
+            url: item.url || item.tweetUrl || item.tweet_url || `https://x.com/user/status/${item.id || item.tweetId}`,
+            author: item.author?.username || item.user?.screen_name || item.username || item.handle || handle,
+            createdAt: item.created_at || item.createdAt || item.timestamp || new Date().toISOString(),
+          }));
+
+          tweets = [...tweets, ...accountTweets];
+          addLog('info', `Добавлено ${accountTweets.length} твитов с аккаунта ${handle}`, {
+            handle,
+            tweetsCount: accountTweets.length,
+            totalTweets: tweets.length
+          });
+        }
       } else {
+        // Для отдельных твитов используем оригинальную логику
         const startUrls = urlList.map(url => ({
           url: normalizeTwitterUrl(url.trim())
         }));
-        requestBody = {
+        const requestBody = {
           startUrls: startUrls,
           tweetsDesired: 1,
           withReplies: false,
@@ -270,95 +382,97 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
             apifyProxyGroups: ["RESIDENTIAL"]
           }
         };
-      }
 
-      addLog('info', 'Отправка запроса в Apify API с исправленным форматом startUrls', { 
-        actorId, 
-        requestBody, 
-        requestId,
-        apiEndpoint: `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`,
-        urlFormat: extractionType === 'tweets' ? 'startUrls as objects with url field' : 'handles as strings'
-      });
-
-      const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=300`;
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      addLog('info', 'Получен ответ от Apify API', { 
-        status: response.status, 
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        requestId,
-        actor: actorId
-      });
-
-      if (!response.ok) {
-        let errorDetails: any = {
-          httpStatus: response.status,
-          httpStatusText: response.statusText,
+        addLog('info', 'Отправка запроса в Apify API с исправленным форматом startUrls', { 
+          actorId, 
+          requestBody, 
           requestId,
-          apiUrl,
-          requestBody,
-          errorCode: `HTTP_${response.status}`,
-          actor: actorId
-        };
+          apiEndpoint: `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`,
+          urlFormat: 'startUrls as objects with url field'
+        });
 
-        try {
-          const errorText = await response.text();
-          errorDetails.responseBody = errorText;
-          
+        const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=300`;
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        addLog('info', 'Получен ответ от Apify API', { 
+          status: response.status, 
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          requestId,
+          actor: actorId
+        });
+
+        if (!response.ok) {
+          let errorDetails: any = {
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+            requestId,
+            apiUrl,
+            requestBody,
+            errorCode: `HTTP_${response.status}`,
+            actor: actorId
+          };
+
           try {
-            const errorJson = JSON.parse(errorText);
-            errorDetails.parsedError = errorJson;
-            if (errorJson.error) {
-              errorDetails.errorMessage = errorJson.error.message;
-              errorDetails.errorType = errorJson.error.type;
-              errorDetails.errorCode = errorJson.error.type || `HTTP_${response.status}`;
+            const errorText = await response.text();
+            errorDetails.responseBody = errorText;
+            
+            try {
+              const errorJson = JSON.parse(errorText);
+              errorDetails.parsedError = errorJson;
+              if (errorJson.error) {
+                errorDetails.errorMessage = errorJson.error.message;
+                errorDetails.errorType = errorJson.error.type;
+                errorDetails.errorCode = errorJson.error.type || `HTTP_${response.status}`;
+              }
+            } catch (e) {
+              errorDetails.rawError = errorText;
             }
           } catch (e) {
-            errorDetails.rawError = errorText;
+            errorDetails.responseReadError = e.message;
           }
-        } catch (e) {
-          errorDetails.responseReadError = e.message;
+
+          addLog('error', `Apify API вернул ошибку: HTTP ${response.status}`, errorDetails);
+          
+          const userErrorMsg = errorDetails.errorMessage || 
+                             errorDetails.rawError || 
+                             `HTTP ${response.status}: ${response.statusText}`;
+          
+          throw new Error(`Ошибка Apify API: ${userErrorMsg}`);
         }
 
-        addLog('error', `Apify API вернул ошибку: HTTP ${response.status}`, errorDetails);
-        
-        const userErrorMsg = errorDetails.errorMessage || 
-                           errorDetails.rawError || 
-                           `HTTP ${response.status}: ${response.statusText}`;
-        
-        throw new Error(`Ошибка Apify API: ${userErrorMsg}`);
+        const data = await response.json();
+        addLog('success', 'Данные успешно получены от Apify', { 
+          dataLength: data.length, 
+          sampleData: data.slice(0, 2),
+          requestId,
+          actor: actorId
+        });
+
+        tweets = data.map((item: any, index: number) => ({
+          id: item.id || item.tweetId || item.tweet_id || `tweet-${Date.now()}-${index}`,
+          text: item.text || item.full_text || item.tweet_text || item.content || 'Текст недоступен',
+          url: item.url || item.tweetUrl || item.tweet_url || `https://x.com/user/status/${item.id || item.tweetId}`,
+          author: item.author?.username || item.user?.screen_name || item.username || item.handle || 'Неизвестный автор',
+          createdAt: item.created_at || item.createdAt || item.timestamp || new Date().toISOString(),
+        }));
       }
-
-      const data = await response.json();
-      addLog('success', 'Данные успешно получены от Apify', { 
-        dataLength: data.length, 
-        sampleData: data.slice(0, 2),
-        requestId,
-        actor: actorId
-      });
-
-      const tweets: Tweet[] = data.map((item: any, index: number) => ({
-        id: item.id || item.tweetId || item.tweet_id || `tweet-${Date.now()}-${index}`,
-        text: item.text || item.full_text || item.tweet_text || item.content || 'Текст недоступен',
-        url: item.url || item.tweetUrl || item.tweet_url || `https://x.com/user/status/${item.id || item.tweetId}`,
-        author: item.author?.username || item.user?.screen_name || item.username || item.handle || 'Неизвестный автор',
-        createdAt: item.created_at || item.createdAt || item.timestamp || new Date().toISOString(),
-      }));
 
       setExtractedTweets(tweets);
       addLog('success', `Успешно извлечено ${tweets.length} твитов`, { 
         tweets: tweets.map(t => ({ id: t.id, author: t.author })),
         requestId,
         actor: actorId,
-        inputFormat: 'corrected_startUrls_format'
+        extractionType,
+        urlsProcessed: urlList.length,
+        tweetsPerAccount: extractionType === 'accounts' ? tweetsPerAccount : 1
       });
 
       toast({
@@ -366,8 +480,12 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         description: `Извлечено ${tweets.length} твитов. Раздел генерации комментариев доступен ниже.`,
       });
 
+      // Исправление: вызываем onExtractSuccess только после установки твитов
       if (onExtractSuccess && tweets.length > 0) {
-        onExtractSuccess();
+        // Добавляем небольшую задержку для обеспечения корректного рендеринга
+        setTimeout(() => {
+          onExtractSuccess();
+        }, 200);
       }
 
     } catch (error) {
