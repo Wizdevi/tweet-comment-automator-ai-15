@@ -37,6 +37,18 @@ const Index: React.FC = () => {
     });
   }, []);
 
+  // Добавляем функцию для переключения на вкладку генерации комментариев
+  const handleExtractSuccess = useCallback(() => {
+    setActiveTab('extractor'); // Остаемся на той же вкладке, но скроллим к секции генерации
+    // Используем setTimeout для гарантии рендеринга компонента
+    setTimeout(() => {
+      const commentSection = document.querySelector('[data-section="comments"]');
+      if (commentSection) {
+        commentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  }, []);
+
   useEffect(() => {
     // Load saved API keys from localStorage
     const savedApifyKey = localStorage.getItem('apify_api_key');
@@ -128,7 +140,11 @@ const Index: React.FC = () => {
             </TabsList>
 
             <TabsContent value="extractor" className="space-y-6">
-              <TweetExtractor apiKeys={apiKeys} addLog={addLog} />
+              <TweetExtractor 
+                apiKeys={apiKeys} 
+                addLog={addLog} 
+                onExtractSuccess={handleExtractSuccess}
+              />
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6">

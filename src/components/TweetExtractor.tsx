@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 interface TweetExtractorProps {
   apiKeys: { apify: string; openai: string };
   addLog: (type: 'info' | 'success' | 'warning' | 'error', message: string, details?: any) => void;
+  onExtractSuccess?: () => void; // Добавляем callback для переключения вкладки
 }
 
 interface Tweet {
@@ -30,7 +31,7 @@ interface GeneratedComment {
   expanded: boolean;
 }
 
-export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
+export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtractorProps) => {
   const [extractionType, setExtractionType] = useState<'tweets' | 'accounts'>('tweets');
   const [urls, setUrls] = useState('');
   const [tweetsPerAccount, setTweetsPerAccount] = useState(5);
@@ -177,7 +178,7 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
           }
         };
       } else {
-        // ИСПРАВЛЕНИЕ: Для отдельных твитов используем правильный формат startUrls
+        // Для отдельных твитов используем правильный формат startUrls
         const startUrls = urlList.map(url => ({
           url: normalizeTwitterUrl(url.trim())
         }));
@@ -289,6 +290,15 @@ export const TweetExtractor = ({ apiKeys, addLog }: TweetExtractorProps) => {
         title: "Успех",
         description: `Извлечено ${tweets.length} твитов с исправленным форматом URL`,
       });
+
+      // АВТОМАТИЧЕСКОЕ ПЕРЕКЛЮЧЕНИЕ НА ВКЛАДКУ ГЕНЕРАЦИИ КОММЕНТАРИЕВ
+      if (onExtractSuccess && tweets.length > 0) {
+        onExtractSuccess();
+        addLog('info', 'Автоматическое переключение на вкладку генерации комментариев', { 
+          tweetsExtracted: tweets.length,
+          requestId 
+        });
+      }
 
     } catch (error) {
       const errorDetails = {
