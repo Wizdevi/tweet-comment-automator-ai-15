@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Tweet, GeneratedComment, ExtractionSettings } from '@/types/tweet';
 
@@ -7,7 +6,7 @@ export const useTweetExtractor = () => {
   const [urls, setUrls] = useState('');
   const [tweetsPerAccount, setTweetsPerAccount] = useState(5);
   const [prompt, setPrompt] = useState('Напиши умный и вовлекающий комментарий к этому твиту. Комментарий должен быть на русском языке, максимум 280 символов.');
-  const [commentsPerTweet, setCommentsPerTweet] = useState(1);
+  const [commentsPerTweet, setCommentsPerTweet] = useState(3); // Изменено с 1 на 3
   const [isExtracting, setIsExtracting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [extractedTweets, setExtractedTweets] = useState<Tweet[]>([]);
@@ -47,7 +46,7 @@ export const useTweetExtractor = () => {
 
     const savedCommentsPerTweet = localStorage.getItem('extractor_comments_per_tweet');
     if (savedCommentsPerTweet) {
-      setCommentsPerTweet(parseInt(savedCommentsPerTweet) || 1);
+      setCommentsPerTweet(parseInt(savedCommentsPerTweet) || 3); // Изменено значение по умолчанию с 1 на 3
     }
 
     const savedTweets = localStorage.getItem('extracted_tweets');

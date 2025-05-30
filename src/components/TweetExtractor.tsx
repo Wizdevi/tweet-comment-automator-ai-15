@@ -88,8 +88,21 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
         toast({
           title: "Успех",
-          description: `Извлечено ${tweets.length} твитов. Раздел генерации комментариев обновлен.`,
+          description: `Извлечено ${tweets.length} твитов. Автоматически запускается генерация комментариев...`,
         });
+
+        // Автоматически запускаем генерацию комментариев
+        if (tweets.length > 0 && apiKeys.openai) {
+          addLog('info', 'Автоматический запуск генерации комментариев');
+          await handleGenerateCommentsAuto(tweets);
+        } else if (tweets.length > 0 && !apiKeys.openai) {
+          addLog('warning', 'OpenAI API ключ не найден - автогенерация комментариев пропущена');
+          toast({
+            title: "Внимание",
+            description: "OpenAI API ключ не найден. Добавьте ключ в настройках для автогенерации комментариев.",
+            variant: "destructive"
+          });
+        }
 
         if (onExtractSuccess && tweets.length > 0) {
           setTimeout(() => {
@@ -136,6 +149,48 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         }, 100);
       }
     }, 10);
+  };
+
+  // Автоматическая генерация комментариев
+  const handleGenerateCommentsAuto = async (tweets: typeof extractedTweets) => {
+    setIsGenerating(true);
+    addLog('info', 'Запуск автоматической генерации комментариев', { 
+      tweetsCount: tweets.length,
+      commentsPerTweet 
+    });
+
+    try {
+      const newComments = await generateComments(tweets, prompt, commentsPerTweet, apiKeys, addLog);
+      
+      setGeneratedComments(newComments);
+      addLog('success', `Автогенерация завершена: ${newComments.length} комментариев`, { 
+        totalComments: newComments.length,
+        tweetsProcessed: tweets.length
+      });
+
+      toast({
+        title: "Автогенерация завершена",
+        description: `Автоматически сгенерировано ${newComments.length} комментариев`,
+      });
+
+    } catch (error) {
+      const errorDetails = {
+        errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+        commentsGenerated: generatedComments.length,
+        timestamp: new Date().toISOString(),
+        autoGeneration: true
+      };
+
+      addLog('error', 'Ошибка при автогенерации комментариев', errorDetails);
+      toast({
+        title: "Ошибка автогенерации",
+        description: errorDetails.errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleGenerateComments = async () => {
