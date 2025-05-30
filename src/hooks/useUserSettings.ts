@@ -90,17 +90,21 @@ export const useUserSettings = () => {
         createdAt: prompt.createdAt
       }));
       
-      const { error } = await supabase
+      // First try to update the existing record
+      const { error: updateError } = await supabase
         .from('user_settings')
-        .upsert({
-          user_id: user.id,
+        .update({
           apify_api_key: updatedSettings.apify_api_key,
           openai_api_key: updatedSettings.openai_api_key,
           saved_prompts: savedPromptsJson as any,
           updated_at: new Date().toISOString()
-        });
+        })
+        .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (updateError) {
+        console.error('Error updating user settings:', updateError);
+        return { success: false, message: 'Ошибка при сохранении настроек' };
+      }
 
       setSettings(updatedSettings);
       return { success: true, message: 'Настройки сохранены' };
