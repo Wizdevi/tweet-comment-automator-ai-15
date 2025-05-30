@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -17,8 +17,15 @@ const Auth: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('signin');
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,14 +39,25 @@ const Auth: React.FC = () => {
     }
 
     setLoading(true);
+    console.log('Attempting sign in with:', email);
+    
     const { error } = await signIn(email, password);
     
     if (error) {
+      console.error('Sign in error:', error);
+      let errorMessage = error.message;
+      
+      if (error.message === 'Invalid login credentials') {
+        errorMessage = 'Неверный email или пароль';
+      } else if (error.message === 'Email not confirmed') {
+        errorMessage = 'Подтвердите ваш email перед входом';
+      } else if (error.message.includes('User not found')) {
+        errorMessage = 'Пользователь с таким email не найден';
+      }
+      
       toast({
         title: "Ошибка входа",
-        description: error.message === 'Invalid login credentials' 
-          ? 'Неверный email или пароль' 
-          : error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     } else {
@@ -82,28 +100,41 @@ const Auth: React.FC = () => {
     }
 
     setLoading(true);
+    console.log('Attempting sign up with:', email);
+    
     const { error } = await signUp(email, password);
     
     if (error) {
-      if (error.message.includes('already registered')) {
-        toast({
-          title: "Ошибка регистрации",
-          description: "Пользователь с таким email уже существует",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Ошибка регистрации",
-          description: error.message,
-          variant: "destructive"
-        });
+      console.error('Sign up error:', error);
+      let errorMessage = error.message;
+      
+      if (error.message.includes('already registered') || error.message.includes('User already registered')) {
+        errorMessage = "Пользователь с таким email уже существует";
+      } else if (error.message.includes('Password should be')) {
+        errorMessage = "Пароль должен содержать минимум 6 символов";
       }
+      
+      toast({
+        title: "Ошибка регистрации",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } else {
       toast({
         title: "Успех",
-        description: "Аккаунт создан! Вы можете войти в систему.",
+        description: "Аккаунт создан! Теперь вы можете войти в систему.",
       });
+      
+      // Автоматически переключиться на вкладку входа и попробовать войти
       setActiveTab('signin');
+      
+      // Небольшая задержка перед автоматическим входом
+      setTimeout(async () => {
+        const { error: signInError } = await signIn(email, password);
+        if (!signInError) {
+          navigate('/');
+        }
+      }, 1000);
     }
     setLoading(false);
   };
