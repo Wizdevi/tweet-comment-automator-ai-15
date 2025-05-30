@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Tweet, GeneratedComment, ExtractionSettings } from '@/types/tweet';
 
@@ -44,9 +45,15 @@ export const useTweetExtractor = () => {
       setPrompt(savedPrompt);
     }
 
+    // Ensure default is always 3, even if localStorage has different value
     const savedCommentsPerTweet = localStorage.getItem('extractor_comments_per_tweet');
-    if (savedCommentsPerTweet) {
-      setCommentsPerTweet(parseInt(savedCommentsPerTweet) || 3);
+    const commentsValue = savedCommentsPerTweet ? parseInt(savedCommentsPerTweet) : 3;
+    // Force set to 3 if it's not already 3
+    if (commentsValue !== 3) {
+      setCommentsPerTweet(3);
+      localStorage.setItem('extractor_comments_per_tweet', '3');
+    } else {
+      setCommentsPerTweet(3);
     }
 
     const savedTweets = localStorage.getItem('extracted_tweets');
@@ -92,7 +99,9 @@ export const useTweetExtractor = () => {
   }, [prompt]);
 
   useEffect(() => {
-    localStorage.setItem('extractor_comments_per_tweet', commentsPerTweet.toString());
+    // Always ensure we save 3 as default
+    const valueToSave = commentsPerTweet || 3;
+    localStorage.setItem('extractor_comments_per_tweet', valueToSave.toString());
   }, [commentsPerTweet]);
 
   useEffect(() => {
