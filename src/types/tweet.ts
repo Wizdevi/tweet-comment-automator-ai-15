@@ -20,10 +20,19 @@ export interface ApiKeys {
   openai: string;
 }
 
+export interface SavedPrompt {
+  id: string;
+  name: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface TweetExtractorProps {
   apiKeys: ApiKeys;
   addLog: (type: 'info' | 'success' | 'warning' | 'error', message: string, details?: any) => void;
   onExtractSuccess?: () => void;
+  savedPrompts: SavedPrompt[];
+  onSavePrompt: (name: string, text: string) => Promise<{ success: boolean; message: string }>;
 }
 
 export interface ExtractionSettings {

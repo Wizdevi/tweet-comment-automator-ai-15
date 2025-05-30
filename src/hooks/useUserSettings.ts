@@ -4,10 +4,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
+interface SavedPrompt {
+  id: string;
+  name: string;
+  text: string;
+  createdAt: string;
+}
+
 interface UserSettings {
   apify_api_key: string;
   openai_api_key: string;
-  saved_prompts: Array<{ id: string; name: string; text: string; createdAt: string }>;
+  saved_prompts: SavedPrompt[];
 }
 
 const defaultSettings: UserSettings = {
@@ -40,10 +47,16 @@ export const useUserSettings = () => {
       }
 
       if (data) {
+        // Safely parse saved_prompts from JSON
+        let savedPrompts: SavedPrompt[] = [];
+        if (data.saved_prompts && Array.isArray(data.saved_prompts)) {
+          savedPrompts = data.saved_prompts as SavedPrompt[];
+        }
+
         setSettings({
           apify_api_key: data.apify_api_key || '',
           openai_api_key: data.openai_api_key || '',
-          saved_prompts: data.saved_prompts || []
+          saved_prompts: savedPrompts
         });
       }
     } catch (error) {
@@ -98,7 +111,7 @@ export const useUserSettings = () => {
       return { success: false, message: 'Промт с таким названием уже существует' };
     }
 
-    const newPrompt = {
+    const newPrompt: SavedPrompt = {
       id: crypto.randomUUID(),
       name: name.trim(),
       text: text.trim(),
