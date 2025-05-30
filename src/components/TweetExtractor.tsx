@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { TweetExtractorProps } from '@/types/tweet';
 import { useTweetExtractor } from '@/hooks/useTweetExtractor';
@@ -33,6 +33,27 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
     toggleExpanded
   } = useTweetExtractor();
 
+  // Защита от зависших состояний - автоматический сброс через 10 минут
+  useEffect(() => {
+    if (isExtracting) {
+      const timeoutId = setTimeout(() => {
+        console.warn('Force resetting isExtracting after timeout');
+        setIsExtracting(false);
+        addLog('warning', 'Принудительный сброс состояния извлечения по таймауту', {
+          timeout: '10 minutes',
+          component: 'TweetExtractor'
+        });
+        toast({
+          title: "Таймаут операции",
+          description: "Состояние извлечения сброшено. Попробуйте снова.",
+          variant: "destructive"
+        });
+      }, 600000); // 10 минут
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isExtracting, setIsExtracting, addLog]);
+
   const handleExtractTweets = async () => {
     if (!apiKeys.apify) {
       const errorMsg = 'Apify API ключ не найден';
@@ -64,16 +85,16 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
       return;
     }
 
-    // Force reset state before starting
+    // Принудительно сбрасываем состояние перед началом
     setIsExtracting(false);
     console.log('Reset isExtracting to false before starting');
     
-    // Use setTimeout to ensure state update is processed
+    // Используем setTimeout для гарантии обработки state update
     setTimeout(async () => {
-      setIsExtracting(true);
-      console.log('Starting tweet extraction, isExtracting set to true');
-
       try {
+        setIsExtracting(true);
+        console.log('Starting tweet extraction, isExtracting set to true');
+
         const tweets = await extractTweets(extractionType, urls, tweetsPerAccount, apiKeys, addLog);
         
         console.log('Tweets extracted successfully:', tweets.length);
@@ -139,14 +160,25 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           variant: "destructive"
         });
       } finally {
+        // Множественный сброс состояния для гарантии
         console.log('Tweet extraction finished, setting isExtracting to false');
         setIsExtracting(false);
         
-        // Double-check state reset after a short delay
+        // Дополнительные попытки сброса с интервалами
         setTimeout(() => {
           setIsExtracting(false);
           console.log('Double-check: ensured isExtracting is false');
         }, 100);
+        
+        setTimeout(() => {
+          setIsExtracting(false);
+          console.log('Triple-check: final ensure isExtracting is false');
+        }, 500);
+        
+        // Логирование для отладки
+        setTimeout(() => {
+          console.log('Final state check - isExtracting should be false:', !isExtracting);
+        }, 1000);
       }
     }, 10);
   };

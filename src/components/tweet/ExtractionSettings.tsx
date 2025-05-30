@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { Play } from 'lucide-react';
+import { Play, RotateCcw } from 'lucide-react';
 
 interface ExtractionSettingsProps {
   extractionType: 'tweets' | 'accounts';
@@ -30,6 +30,11 @@ export const ExtractionSettings = ({
   hasApiKey,
   onExtract
 }: ExtractionSettingsProps) => {
+  const handleForceReset = () => {
+    // Принудительный сброс состояния через перезагрузку страницы
+    window.location.reload();
+  };
+
   return (
     <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg">
       <CardHeader className="bg-gray-700/80 border-b border-gray-600">
@@ -89,20 +94,39 @@ export const ExtractionSettings = ({
           </div>
         )}
 
-        <Button 
-          onClick={onExtract}
-          disabled={isExtracting || !hasApiKey}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          {isExtracting ? (
-            <>Извлечение данных...</>
-          ) : (
-            <>
-              <Play className="mr-2 h-4 w-4" />
-              Извлечь твиты
-            </>
+        <div className="flex gap-2">
+          <Button 
+            onClick={onExtract}
+            disabled={isExtracting || !hasApiKey}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {isExtracting ? (
+              <>Извлечение данных...</>
+            ) : (
+              <>
+                <Play className="mr-2 h-4 w-4" />
+                Извлечь твиты
+              </>
+            )}
+          </Button>
+          
+          {isExtracting && (
+            <Button 
+              onClick={handleForceReset}
+              variant="outline"
+              className="border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white"
+              title="Принудительно сбросить состояние (перезагрузка страницы)"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
           )}
-        </Button>
+        </div>
+        
+        {!hasApiKey && (
+          <p className="text-xs text-red-400">
+            Добавьте Apify API ключ в настройках для активации кнопки
+          </p>
+        )}
       </CardContent>
     </Card>
   );
