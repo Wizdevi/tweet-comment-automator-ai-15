@@ -43,6 +43,8 @@ export const extractTweets = async (
       tweetsDesired: tweetsPerAccount,
       withReplies: false,
       includeUserInfo: true,
+      addUserInfo: true,
+      includeConversation: false,
       proxyConfig: {
         useApifyProxy: true,
         apifyProxyGroups: ["RESIDENTIAL"]
@@ -58,7 +60,7 @@ export const extractTweets = async (
       totalExpectedTweets: handles.length * tweetsPerAccount
     });
 
-    const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=300`;
+    const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=600`;
     
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -128,6 +130,28 @@ export const extractTweets = async (
       actualTweets: data.length
     });
 
+    // Check if data is empty and provide helpful error
+    if (!data || data.length === 0) {
+      const warningMsg = `Апify актор не смог извлечь твиты для указанных аккаунтов: ${handles.join(', ')}`;
+      addLog('warning', warningMsg, {
+        handles,
+        possibleReasons: [
+          'Аккаунты могут быть приватными',
+          'Аккаунты могут не существовать',
+          'Временные проблемы с Twitter API',
+          'Аккаунты могут не иметь недавних твитов'
+        ],
+        suggestions: [
+          'Проверьте правильность имен аккаунтов',
+          'Убедитесь что аккаунты публичные',
+          'Попробуйте другие аккаунты'
+        ]
+      });
+      
+      // Return empty array instead of throwing error
+      return [];
+    }
+
     tweets = data.map((item: any, index: number) => ({
       id: item.id || item.tweetId || item.tweet_id || `tweet-${Date.now()}-${index}`,
       text: item.text || item.full_text || item.tweet_text || item.content || 'Текст недоступен',
@@ -151,13 +175,15 @@ export const extractTweets = async (
       tweetsDesired: 1,
       withReplies: false,
       includeUserInfo: true,
+      addUserInfo: true,
+      includeConversation: false,
       proxyConfig: {
         useApifyProxy: true,
         apifyProxyGroups: ["RESIDENTIAL"]
       }
     };
 
-    addLog('info', 'Отправка запроса в Apify API с исправленным форматом startUrls', { 
+    addLog('info', 'Отправка запроса в Apify API для извлечения отдельных твитов', { 
       actorId, 
       requestBody, 
       requestId,
@@ -165,7 +191,7 @@ export const extractTweets = async (
       urlFormat: 'startUrls as objects with url field'
     });
 
-    const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=300`;
+    const apiUrl = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${apiKeys.apify}&timeout=600`;
     
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -229,6 +255,28 @@ export const extractTweets = async (
       requestId,
       actor: actorId
     });
+
+    // Check if data is empty and provide helpful error
+    if (!data || data.length === 0) {
+      const warningMsg = 'Апify актор не смог извлечь указанные твиты';
+      addLog('warning', warningMsg, {
+        urls: startUrls,
+        possibleReasons: [
+          'Твиты могут быть удалены',
+          'Твиты могут быть из приватных аккаунтов',
+          'Неверные URL твитов',
+          'Временные проблемы с Twitter API'
+        ],
+        suggestions: [
+          'Проверьте правильность URL твитов',
+          'Убедитесь что твиты существуют и публичные',
+          'Попробуйте другие твиты'
+        ]
+      });
+      
+      // Return empty array instead of throwing error
+      return [];
+    }
 
     tweets = data.map((item: any, index: number) => ({
       id: item.id || item.tweetId || item.tweet_id || `tweet-${Date.now()}-${index}`,
