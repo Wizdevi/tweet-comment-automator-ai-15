@@ -145,15 +145,60 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           onExtractSuccess();
         }
 
-        // Автоматически запускаем генерацию комментариев с задержкой для UX
+        // Запускаем автогенерацию сразу после успешного извлечения
         if (tweets.length > 0 && apiKeys.openai) {
-          addLog('info', 'Подготовка к автогенерации комментариев');
+          console.log('Starting immediate auto-generation');
           
-          // Небольшая задержка чтобы пользователь увидел извлеченные твиты
-          setTimeout(() => {
-            console.log('Starting auto-generation of comments');
-            handleGenerateCommentsAuto(tweets);
-          }, 1500);
+          // Устанавливаем состояние генерации
+          setIsGenerating(true);
+          
+          addLog('info', 'Запуск автоматической генерации комментариев', { 
+            tweetsCount: tweets.length,
+            commentsPerTweet 
+          });
+
+          toast({
+            title: "Автогенерация запущена",
+            description: `Генерируются комментарии для ${tweets.length} твитов...`,
+          });
+
+          try {
+            console.log('Calling generateComments for auto-generation...');
+            const newComments = await generateComments(tweets, prompt, commentsPerTweet, apiKeys, addLog);
+            
+            console.log('Generated comments in auto-generation:', newComments.length);
+            setGeneratedComments(newComments);
+            
+            addLog('success', `Автогенерация завершена: ${newComments.length} комментариев`, { 
+              totalComments: newComments.length,
+              tweetsProcessed: tweets.length
+            });
+
+            toast({
+              title: "Автогенерация завершена",
+              description: `Автоматически сгенерировано ${newComments.length} комментариев`,
+            });
+
+          } catch (genError) {
+            console.error('Error in auto-generation:', genError);
+            const errorDetails = {
+              errorMessage: genError instanceof Error ? genError.message : 'Неизвестная ошибка',
+              errorName: genError instanceof Error ? genError.name : 'UnknownError',
+              commentsGenerated: 0,
+              timestamp: new Date().toISOString(),
+              autoGeneration: true
+            };
+
+            addLog('error', 'Ошибка при автогенерации комментариев', errorDetails);
+            toast({
+              title: "Ошибка автогенерации",
+              description: errorDetails.errorMessage,
+              variant: "destructive"
+            });
+          } finally {
+            console.log('Auto-generation finished, setting isGenerating to false');
+            setIsGenerating(false);
+          }
         } else if (tweets.length > 0 && !apiKeys.openai) {
           addLog('warning', 'OpenAI API ключ не найден - автогенерация комментариев пропущена');
           toast({
@@ -192,7 +237,6 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           variant: "destructive"
         });
       } finally {
-        // Множественный сброс состояния для гарантии
         console.log('Tweet extraction finished, setting isExtracting to false');
         setIsExtracting(false);
         
@@ -213,60 +257,6 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         }, 1000);
       }
     }, 10);
-  };
-
-  // Автоматическая генерация комментариев
-  const handleGenerateCommentsAuto = async (tweets: typeof extractedTweets) => {
-    console.log('Starting handleGenerateCommentsAuto with tweets:', tweets.length);
-    
-    setIsGenerating(true);
-    addLog('info', 'Запуск автоматической генерации комментариев', { 
-      tweetsCount: tweets.length,
-      commentsPerTweet 
-    });
-
-    // Показать сообщение о начале генерации
-    toast({
-      title: "Автогенерация запущена",
-      description: `Генерируются комментарии для ${tweets.length} твитов...`,
-    });
-
-    try {
-      console.log('Calling generateComments...');
-      const newComments = await generateComments(tweets, prompt, commentsPerTweet, apiKeys, addLog);
-      
-      console.log('Generated comments:', newComments.length);
-      setGeneratedComments(newComments);
-      addLog('success', `Автогенерация завершена: ${newComments.length} комментариев`, { 
-        totalComments: newComments.length,
-        tweetsProcessed: tweets.length
-      });
-
-      toast({
-        title: "Автогенерация завершена",
-        description: `Автоматически сгенерировано ${newComments.length} комментариев`,
-      });
-
-    } catch (error) {
-      console.error('Error in auto-generation:', error);
-      const errorDetails = {
-        errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
-        errorName: error instanceof Error ? error.name : 'UnknownError',
-        commentsGenerated: generatedComments.length,
-        timestamp: new Date().toISOString(),
-        autoGeneration: true
-      };
-
-      addLog('error', 'Ошибка при автогенерации комментариев', errorDetails);
-      toast({
-        title: "Ошибка автогенерации",
-        description: errorDetails.errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      console.log('Auto-generation finished, setting isGenerating to false');
-      setIsGenerating(false);
-    }
   };
 
   const handleGenerateComments = async () => {
@@ -362,7 +352,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
     openOriginalTweet(tweetUrl, addLog);
   };
 
-  console.log('TweetExtractor render - extractedTweets:', extractedTweets.length, 'isExtracting:', isExtracting, 'isGenerating:', isGenerating);
+  console.log('TweetExtractor render - extractedTweets:', extractedTweets.length, 'isExtracting:', isExtracting, 'isGenerating:', isGenerating, 'generatedComments:', generatedComments.length);
 
   return (
     <div className="space-y-6">
