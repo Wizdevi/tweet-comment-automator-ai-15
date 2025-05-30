@@ -17,6 +17,7 @@ interface ExtractionSettingsProps {
   isExtracting: boolean;
   hasApiKey: boolean;
   onExtract: () => void;
+  onForceReset?: () => void;
 }
 
 export const ExtractionSettings = ({
@@ -28,11 +29,16 @@ export const ExtractionSettings = ({
   setTweetsPerAccount,
   isExtracting,
   hasApiKey,
-  onExtract
+  onExtract,
+  onForceReset
 }: ExtractionSettingsProps) => {
   const handleForceReset = () => {
-    // Принудительный сброс состояния через перезагрузку страницы
-    window.location.reload();
+    if (onForceReset) {
+      onForceReset();
+    } else {
+      // Фallback к перезагрузке страницы если onForceReset не предоставлен
+      window.location.reload();
+    }
   };
 
   return (
@@ -115,7 +121,7 @@ export const ExtractionSettings = ({
               onClick={handleForceReset}
               variant="outline"
               className="border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white"
-              title="Принудительно сбросить состояние (перезагрузка страницы)"
+              title="Принудительно сбросить состояние"
             >
               <RotateCcw className="h-4 w-4" />
             </Button>

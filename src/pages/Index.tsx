@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -41,6 +40,7 @@ const Index: React.FC = () => {
   const handleExtractSuccess = useCallback(() => {
     // Переключаем на вкладку извлечения твитов
     setActiveTab('extractor');
+    addLog('info', 'Переключение на вкладку извлечения твитов после успешного извлечения');
     
     // Ждем рендеринга вкладки, затем скроллим к секции комментариев
     setTimeout(() => {

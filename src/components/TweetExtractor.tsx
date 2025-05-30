@@ -54,6 +54,32 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
     }
   }, [isExtracting, setIsExtracting, addLog]);
 
+  // Функция полного сброса состояния
+  const handleForceReset = () => {
+    console.log('Выполнение полного сброса состояния...');
+    
+    // Сброс всех состояний
+    setIsExtracting(false);
+    setIsGenerating(false);
+    setExtractedTweets([]);
+    setGeneratedComments([]);
+    
+    // Очистка localStorage
+    localStorage.removeItem('is_extracting');
+    localStorage.removeItem('extracted_tweets');
+    localStorage.removeItem('generated_comments');
+    
+    addLog('info', 'Выполнен полный сброс состояния извлечения', {
+      component: 'TweetExtractor',
+      action: 'force_reset'
+    });
+    
+    toast({
+      title: "Сброс выполнен",
+      description: "Состояние извлечения полностью сброшено",
+    });
+  };
+
   const handleExtractTweets = async () => {
     if (!apiKeys.apify) {
       const errorMsg = 'Apify API ключ не найден';
@@ -332,6 +358,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         isExtracting={isExtracting}
         hasApiKey={!!apiKeys.apify}
         onExtract={handleExtractTweets}
+        onForceReset={handleForceReset}
       />
 
       <CommentGeneration
