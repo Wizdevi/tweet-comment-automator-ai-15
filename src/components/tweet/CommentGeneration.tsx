@@ -1,10 +1,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { Play, Save } from 'lucide-react';
 import { Tweet } from '@/types/tweet';
 
@@ -34,12 +34,6 @@ export const CommentGeneration = ({
   extractedTweets
 }: CommentGenerationProps) => {
   console.log('CommentGeneration render - extractedTweets:', extractedTweets.length);
-
-  // Ensure commentsPerTweet is always at least 3
-  const handleCommentsPerTweetChange = (value: string) => {
-    const numValue = parseInt(value) || 3;
-    setCommentsPerTweet(Math.max(3, numValue));
-  };
 
   return (
     <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg" data-section="comments">
@@ -105,17 +99,23 @@ export const CommentGeneration = ({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label className="text-gray-200 font-medium">Количество комментариев на твит (по умолчанию: 3)</Label>
-          <Input
-            type="number"
-            min="3"
-            max="5"
-            value={commentsPerTweet}
-            onChange={(e) => handleCommentsPerTweetChange(e.target.value)}
-            className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            placeholder="3"
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <Label className="text-gray-200 font-medium">Количество комментариев на твит (по умолчанию: 3)</Label>
+            <span className="text-blue-400 font-semibold">{commentsPerTweet}</span>
+          </div>
+          <Slider
+            value={[commentsPerTweet]}
+            onValueChange={(value) => setCommentsPerTweet(value[0])}
+            max={20}
+            min={1}
+            step={1}
+            className="w-full"
           />
+          <div className="flex justify-between text-xs text-gray-400">
+            <span>1</span>
+            <span>20</span>
+          </div>
         </div>
 
         <Button 
