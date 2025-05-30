@@ -149,15 +149,16 @@ const Index: React.FC = () => {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="extractor" className="space-y-6">
-              {apiKeysLoaded && (
+            {/* Всегда рендерим TweetExtractor, но показываем только когда активна вкладка extractor */}
+            {apiKeysLoaded && (
+              <div className={activeTab === 'extractor' ? 'block' : 'hidden'}>
                 <TweetExtractor 
                   apiKeys={apiKeys} 
                   addLog={addLog} 
                   onExtractSuccess={handleExtractSuccess}
                 />
-              )}
-            </TabsContent>
+              </div>
+            )}
 
             <TabsContent value="settings" className="space-y-6">
               <Settings 
