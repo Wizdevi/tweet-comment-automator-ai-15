@@ -50,7 +50,12 @@ export const useUserSettings = () => {
         // Safely parse saved_prompts from JSON
         let savedPrompts: SavedPrompt[] = [];
         if (data.saved_prompts && Array.isArray(data.saved_prompts)) {
-          savedPrompts = data.saved_prompts as SavedPrompt[];
+          savedPrompts = data.saved_prompts.map((prompt: any) => ({
+            id: prompt.id || '',
+            name: prompt.name || '',
+            text: prompt.text || '',
+            createdAt: prompt.createdAt || new Date().toISOString()
+          }));
         }
 
         setSettings({
@@ -77,13 +82,21 @@ export const useUserSettings = () => {
     try {
       const updatedSettings = { ...settings, ...newSettings };
       
+      // Convert saved_prompts to JSON-compatible format
+      const savedPromptsJson = updatedSettings.saved_prompts.map(prompt => ({
+        id: prompt.id,
+        name: prompt.name,
+        text: prompt.text,
+        createdAt: prompt.createdAt
+      }));
+      
       const { error } = await supabase
         .from('user_settings')
         .upsert({
           user_id: user.id,
           apify_api_key: updatedSettings.apify_api_key,
           openai_api_key: updatedSettings.openai_api_key,
-          saved_prompts: updatedSettings.saved_prompts,
+          saved_prompts: savedPromptsJson as any,
           updated_at: new Date().toISOString()
         });
 
