@@ -5,7 +5,7 @@ export const useTweetExtractor = () => {
   const [extractionType, setExtractionType] = useState<'tweets' | 'accounts'>('tweets');
   const [urls, setUrls] = useState('');
   const [tweetsPerAccount, setTweetsPerAccount] = useState(5);
-  const [prompt, setPrompt] = useState('Напиши умный и вовлекающий комментарий к этому твиту. Комментарий должен быть на русском языке, максимум 280 символов.');
+  const [prompt, setPrompt] = useState('Напиши умный и вовлекающий комментарий к этому твиту. Используй разговорный стиль общения. Комментарий должен быть на английском языке, не более 280 символов.');
   const [commentsPerTweet, setCommentsPerTweet] = useState(3);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
