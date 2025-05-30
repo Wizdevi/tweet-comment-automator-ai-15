@@ -1,10 +1,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { Play } from 'lucide-react';
 
 interface ExtractionSettingsProps {
@@ -69,16 +69,23 @@ export const ExtractionSettings = ({
         </div>
 
         {extractionType === 'accounts' && (
-          <div className="space-y-2">
-            <Label className="text-gray-200 font-medium">Количество твитов с каждого аккаунта</Label>
-            <Input
-              type="number"
-              min="1"
-              max="100"
-              value={tweetsPerAccount}
-              onChange={(e) => setTweetsPerAccount(parseInt(e.target.value) || 5)}
-              className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <Label className="text-gray-200 font-medium">Количество твитов с каждого аккаунта</Label>
+              <span className="text-blue-400 font-semibold">{tweetsPerAccount}</span>
+            </div>
+            <Slider
+              value={[tweetsPerAccount]}
+              onValueChange={(value) => setTweetsPerAccount(value[0])}
+              max={20}
+              min={1}
+              step={1}
+              className="w-full"
             />
+            <div className="flex justify-between text-xs text-gray-400">
+              <span>1</span>
+              <span>20</span>
+            </div>
           </div>
         )}
 
