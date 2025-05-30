@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { TweetExtractorProps } from '@/types/tweet';
@@ -138,10 +139,18 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
           description: `Извлечено ${tweets.length} твитов. Автоматически запускается генерация комментариев...`,
         });
 
-        // Автоматически запускаем генерацию комментариев
+        // Сначала переключаемся на вкладку извлечения и ждем отображения твитов
+        if (onExtractSuccess && tweets.length > 0) {
+          onExtractSuccess();
+        }
+
+        // Автоматически запускаем генерацию комментариев с небольшой задержкой
         if (tweets.length > 0 && apiKeys.openai) {
           addLog('info', 'Автоматический запуск генерации комментариев');
-          await handleGenerateCommentsAuto(tweets);
+          // Задержка для того чтобы пользователь увидел извлеченные твиты
+          setTimeout(() => {
+            handleGenerateCommentsAuto(tweets);
+          }, 1000);
         } else if (tweets.length > 0 && !apiKeys.openai) {
           addLog('warning', 'OpenAI API ключ не найден - автогенерация комментариев пропущена');
           toast({
@@ -149,12 +158,6 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
             description: "OpenAI API ключ не найден. Добавьте ключ в настройках для автогенерации комментариев.",
             variant: "destructive"
           });
-        }
-
-        if (onExtractSuccess && tweets.length > 0) {
-          setTimeout(() => {
-            onExtractSuccess();
-          }, 200);
         }
 
       } catch (error) {
@@ -215,6 +218,12 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
     addLog('info', 'Запуск автоматической генерации комментариев', { 
       tweetsCount: tweets.length,
       commentsPerTweet 
+    });
+
+    // Показать сообщение о начале генерации
+    toast({
+      title: "Генерация комментариев",
+      description: "Автоматически генерируются комментарии для извлеченных твитов...",
     });
 
     try {
