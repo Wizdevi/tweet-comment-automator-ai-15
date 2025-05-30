@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +9,7 @@ import { toast } from '@/hooks/use-toast';
 
 interface SettingsProps {
   apiKeys: { apify: string; openai: string };
-  onSaveApiKeys: (keys: { apify: string; openai: string }) => void;
+  onSaveApiKeys: (keys: { apify: string; openai: string }) => Promise<{ success: boolean; message: string }>;
   addLog: (type: 'info' | 'success' | 'warning' | 'error', message: string, details?: any) => void;
 }
 
@@ -33,15 +32,12 @@ export const Settings = ({ apiKeys, onSaveApiKeys, addLog }: SettingsProps) => {
         throw new Error('OpenAI API ключ должен начинаться с "sk-"');
       }
 
-      onSaveApiKeys(localApiKeys);
-      addLog('success', 'API ключи сохранены', { 
-        apifySet: !!localApiKeys.apify, 
-        openaiSet: !!localApiKeys.openai 
-      });
+      const result = await onSaveApiKeys(localApiKeys);
       
       toast({
-        title: "Успех",
-        description: "API ключи успешно сохранены",
+        title: result.success ? "Успех" : "Ошибка",
+        description: result.message,
+        variant: result.success ? "default" : "destructive"
       });
     } catch (error) {
       addLog('error', 'Ошибка при сохранении API ключей', error);
@@ -132,7 +128,7 @@ export const Settings = ({ apiKeys, onSaveApiKeys, addLog }: SettingsProps) => {
             API Ключи
           </CardTitle>
           <CardDescription className="text-blue-200">
-            Настройте API ключи для Apify и OpenAI. Ключи сохраняются локально в браузере.
+            Настройте API ключи для Apify и OpenAI. Ключи сохраняются в вашем профиле.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -143,8 +139,8 @@ export const Settings = ({ apiKeys, onSaveApiKeys, addLog }: SettingsProps) => {
               <div className="space-y-2">
                 <p className="text-yellow-200 font-medium">Важная информация о безопасности</p>
                 <p className="text-yellow-100 text-sm">
-                  API ключи сохраняются только локально в вашем браузере и никуда не передаются. 
-                  Однако рекомендуется использовать ключи с ограниченными правами и регулярно их обновлять.
+                  API ключи сохраняются в защищенной базе данных и доступны только вам. 
+                  Рекомендуется использовать ключи с ограниченными правами и регулярно их обновлять.
                 </p>
               </div>
             </div>

@@ -9,7 +9,65 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          apify_api_key: string | null
+          created_at: string
+          id: string
+          openai_api_key: string | null
+          saved_prompts: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          apify_api_key?: string | null
+          created_at?: string
+          id?: string
+          openai_api_key?: string | null
+          saved_prompts?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          apify_api_key?: string | null
+          created_at?: string
+          id?: string
+          openai_api_key?: string | null
+          saved_prompts?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
