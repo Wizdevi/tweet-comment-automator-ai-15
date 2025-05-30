@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { TweetExtractorProps } from '@/types/tweet';
@@ -114,7 +113,9 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
     // Принудительно сбрасываем состояние перед началом
     setIsExtracting(false);
-    console.log('Reset isExtracting to false before starting');
+    setIsGenerating(false);
+    setGeneratedComments([]); // Очищаем предыдущие комментарии
+    console.log('Reset state before starting');
     
     // Используем setTimeout для гарантии обработки state update
     setTimeout(async () => {
@@ -136,21 +137,23 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
         toast({
           title: "Успех",
-          description: `Извлечено ${tweets.length} твитов. Автоматически запускается генерация комментариев...`,
+          description: `Извлечено ${tweets.length} твитов. Переключение на генерацию комментариев...`,
         });
 
-        // Сначала переключаемся на вкладку извлечения и ждем отображения твитов
+        // Сначала переключаемся на вкладку извлечения и показываем результаты
         if (onExtractSuccess && tweets.length > 0) {
           onExtractSuccess();
         }
 
-        // Автоматически запускаем генерацию комментариев с небольшой задержкой
+        // Автоматически запускаем генерацию комментариев с задержкой для UX
         if (tweets.length > 0 && apiKeys.openai) {
-          addLog('info', 'Автоматический запуск генерации комментариев');
-          // Задержка для того чтобы пользователь увидел извлеченные твиты
+          addLog('info', 'Подготовка к автогенерации комментариев');
+          
+          // Небольшая задержка чтобы пользователь увидел извлеченные твиты
           setTimeout(() => {
+            console.log('Starting auto-generation of comments');
             handleGenerateCommentsAuto(tweets);
-          }, 1000);
+          }, 1500);
         } else if (tweets.length > 0 && !apiKeys.openai) {
           addLog('warning', 'OpenAI API ключ не найден - автогенерация комментариев пропущена');
           toast({
@@ -214,6 +217,8 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
   // Автоматическая генерация комментариев
   const handleGenerateCommentsAuto = async (tweets: typeof extractedTweets) => {
+    console.log('Starting handleGenerateCommentsAuto with tweets:', tweets.length);
+    
     setIsGenerating(true);
     addLog('info', 'Запуск автоматической генерации комментариев', { 
       tweetsCount: tweets.length,
@@ -222,13 +227,15 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
 
     // Показать сообщение о начале генерации
     toast({
-      title: "Генерация комментариев",
-      description: "Автоматически генерируются комментарии для извлеченных твитов...",
+      title: "Автогенерация запущена",
+      description: `Генерируются комментарии для ${tweets.length} твитов...`,
     });
 
     try {
+      console.log('Calling generateComments...');
       const newComments = await generateComments(tweets, prompt, commentsPerTweet, apiKeys, addLog);
       
+      console.log('Generated comments:', newComments.length);
       setGeneratedComments(newComments);
       addLog('success', `Автогенерация завершена: ${newComments.length} комментариев`, { 
         totalComments: newComments.length,
@@ -241,6 +248,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
       });
 
     } catch (error) {
+      console.error('Error in auto-generation:', error);
       const errorDetails = {
         errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка',
         errorName: error instanceof Error ? error.name : 'UnknownError',
@@ -256,6 +264,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
         variant: "destructive"
       });
     } finally {
+      console.log('Auto-generation finished, setting isGenerating to false');
       setIsGenerating(false);
     }
   };
@@ -353,7 +362,7 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
     openOriginalTweet(tweetUrl, addLog);
   };
 
-  console.log('TweetExtractor render - extractedTweets:', extractedTweets.length, 'isExtracting:', isExtracting);
+  console.log('TweetExtractor render - extractedTweets:', extractedTweets.length, 'isExtracting:', isExtracting, 'isGenerating:', isGenerating);
 
   return (
     <div className="space-y-6">
