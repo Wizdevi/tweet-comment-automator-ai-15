@@ -6,14 +6,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Play, Save } from 'lucide-react';
-import { Tweet } from '@/types/tweet';
+import { Tweet, SavedPrompt } from '@/types/tweet';
 
 interface CommentGenerationProps {
   prompt: string;
   setPrompt: (prompt: string) => void;
   commentsPerTweet: number;
   setCommentsPerTweet: (count: number) => void;
-  savedPrompts: string[];
+  savedPrompts: SavedPrompt[];
   isGenerating: boolean;
   hasApiKey: boolean;
   onGenerate: () => void;
@@ -70,9 +70,9 @@ export const CommentGeneration = ({
               <SelectValue placeholder="Выберите сохраненный промпт или введите новый" />
             </SelectTrigger>
             <SelectContent>
-              {savedPrompts.map((savedPrompt, index) => (
-                <SelectItem key={index} value={savedPrompt}>
-                  {savedPrompt.slice(0, 50)}...
+              {savedPrompts.map((savedPrompt) => (
+                <SelectItem key={savedPrompt.id} value={savedPrompt.text}>
+                  {savedPrompt.name} - {savedPrompt.text.slice(0, 50)}...
                 </SelectItem>
               ))}
             </SelectContent>
