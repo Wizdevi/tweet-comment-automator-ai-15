@@ -1,5 +1,6 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { Tweet, GeneratedComment, ExtractionSettings } from '@/types/tweet';
+import { Tweet, GeneratedComment, ExtractionSettings, SavedPrompt } from '@/types/tweet';
 
 export const useTweetExtractor = () => {
   const [extractionType, setExtractionType] = useState<'tweets' | 'accounts'>('tweets');
@@ -11,19 +12,9 @@ export const useTweetExtractor = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [extractedTweets, setExtractedTweets] = useState<Tweet[]>([]);
   const [generatedComments, setGeneratedComments] = useState<GeneratedComment[]>([]);
-  const [savedPrompts, setSavedPrompts] = useState<string[]>([]);
 
   // Load saved data on mount
   useEffect(() => {
-    const saved = localStorage.getItem('saved_prompts');
-    if (saved) {
-      try {
-        setSavedPrompts(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to load saved prompts:', e);
-      }
-    }
-
     const savedUrls = localStorage.getItem('extractor_urls');
     if (savedUrls) {
       setUrls(savedUrls);
@@ -112,22 +103,6 @@ export const useTweetExtractor = () => {
     }
   }, [isExtracting]);
 
-  const savePrompt = useCallback(() => {
-    if (!prompt.trim()) {
-      return { success: false, message: "Промпт не может быть пустым" };
-    }
-
-    if (savedPrompts.includes(prompt)) {
-      return { success: false, message: "Такой промпт уже сохранен" };
-    }
-
-    const newPrompts = [...savedPrompts, prompt];
-    setSavedPrompts(newPrompts);
-    localStorage.setItem('saved_prompts', JSON.stringify(newPrompts));
-    
-    return { success: true, message: "Промпт сохранен" };
-  }, [prompt, savedPrompts]);
-
   const toggleExpanded = useCallback((index: number) => {
     setGeneratedComments(prev => 
       prev.map((comment, i) => 
@@ -155,8 +130,6 @@ export const useTweetExtractor = () => {
     setExtractedTweets,
     generatedComments,
     setGeneratedComments,
-    savedPrompts,
-    savePrompt,
     toggleExpanded
   };
 };
