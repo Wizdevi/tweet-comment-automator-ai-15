@@ -42,12 +42,11 @@ export const useUserSettings = () => {
         .eq('user_id', user.id)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
 
       if (data) {
-        // Safely parse saved_prompts from JSON
         let savedPrompts: SavedPrompt[] = [];
         if (data.saved_prompts && Array.isArray(data.saved_prompts)) {
           savedPrompts = data.saved_prompts.map((prompt: any) => ({
@@ -82,7 +81,6 @@ export const useUserSettings = () => {
     try {
       const updatedSettings = { ...settings, ...newSettings };
       
-      // Convert saved_prompts to JSON-compatible format
       const savedPromptsJson = updatedSettings.saved_prompts.map(prompt => ({
         id: prompt.id,
         name: prompt.name,
@@ -90,19 +88,20 @@ export const useUserSettings = () => {
         createdAt: prompt.createdAt
       }));
       
-      // First try to update the existing record
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from('user_settings')
-        .update({
+        .upsert({
+          user_id: user.id,
           apify_api_key: updatedSettings.apify_api_key,
           openai_api_key: updatedSettings.openai_api_key,
           saved_prompts: savedPromptsJson as any,
           updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
-      if (updateError) {
-        console.error('Error updating user settings:', updateError);
+      if (error) {
+        console.error('Error saving user settings:', error);
         return { success: false, message: 'Ошибка при сохранении настроек' };
       }
 
@@ -116,16 +115,16 @@ export const useUserSettings = () => {
 
   const savePrompt = useCallback(async (name: string, text: string) => {
     if (!text.trim()) {
-      return { success: false, message: 'Промт не может быть пустым' };
+      return { success: false, message: 'Промпт не может быть пустым' };
     }
 
     if (!name.trim()) {
-      return { success: false, message: 'Название промта не может быть пустым' };
+      return { success: false, message: 'Название промпта не может быть пустым' };
     }
 
     const existingPrompt = settings.saved_prompts.find(p => p.name === name.trim());
     if (existingPrompt) {
-      return { success: false, message: 'Промт с таким названием уже существует' };
+      return { success: false, message: 'Промпт с таким названием уже существует' };
     }
 
     const newPrompt: SavedPrompt = {
@@ -138,10 +137,26 @@ export const useUserSettings = () => {
     const updatedPrompts = [...settings.saved_prompts, newPrompt];
     const result = await saveSettings({ saved_prompts: updatedPrompts });
     
-    return result.success 
-      ? { success: true, message: 'Промт сохранен' }
-      : result;
-  }, [settings.saved_prompts, saveSettings]);
+    if (result.success) {
+      // Перезагружаем настройки из базы данных для синхронизации
+      await loadSettings();
+      return { success: true, message: 'Промпт сохранен' };
+    }
+    
+    return result;
+  }, [settings.saved_prompts, saveSettings, loadSettings]);
+
+  const deletePrompt = useCallback(async (promptId: string) => {
+    const updatedPrompts = settings.saved_prompts.filter(p => p.id !== promptId);
+    const result = await saveSettings({ saved_prompts: updatedPrompts });
+    
+    if (result.success) {
+      await loadSettings();
+      return { success: true, message: 'Промпт удален' };
+    }
+    
+    return result;
+  }, [settings.saved_prompts, saveSettings, loadSettings]);
 
   useEffect(() => {
     loadSettings();
@@ -152,6 +167,7 @@ export const useUserSettings = () => {
     loading,
     saveSettings,
     savePrompt,
+    deletePrompt,
     loadSettings
   };
 };

@@ -8,7 +8,7 @@ import { ExtractionSettings } from '@/components/tweet/ExtractionSettings';
 import { CommentGeneration } from '@/components/tweet/CommentGeneration';
 import { TweetResults } from '@/components/tweet/TweetResults';
 
-export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtractorProps) => {
+export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess, savedPrompts, onSavePrompt }: TweetExtractorProps) => {
   const {
     extractionType,
     setExtractionType,
@@ -28,8 +28,6 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
     setExtractedTweets,
     generatedComments,
     setGeneratedComments,
-    savedPrompts,
-    savePrompt,
     toggleExpanded
   } = useTweetExtractor();
 
@@ -317,8 +315,28 @@ export const TweetExtractor = ({ apiKeys, addLog, onExtractSuccess }: TweetExtra
     }
   };
 
-  const handleSavePrompt = () => {
-    const result = savePrompt();
+  const handleSavePrompt = async () => {
+    if (!prompt.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Промпт не может быть пустым",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Запрашиваем название промпта у пользователя
+    const name = window.prompt("Введите название для промпта:");
+    if (!name || !name.trim()) {
+      toast({
+        title: "Ошибка",
+        description: "Название промпта не может быть пустым",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const result = await onSavePrompt(name.trim(), prompt);
     toast({
       title: result.success ? "Успех" : "Ошибка",
       description: result.message,
