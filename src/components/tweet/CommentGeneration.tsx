@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -142,8 +141,8 @@ export const CommentGeneration = ({
             </div>
           </div>
           <div className="flex gap-2">
-            <Select value={prompt} onValueChange={setPrompt} className="flex-1">
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            <Select value={prompt} onValueChange={setPrompt}>
+              <SelectTrigger className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 flex-1">
                 <SelectValue placeholder="Выберите сохраненный промпт или введите новый" />
               </SelectTrigger>
               <SelectContent>
