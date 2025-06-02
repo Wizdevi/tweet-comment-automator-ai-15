@@ -1,17 +1,17 @@
 
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { Play, Save, Edit, Trash2, Plus, Globe } from 'lucide-react';
+import { Play, Save } from 'lucide-react';
 import { Tweet, SavedPrompt } from '@/types/tweet';
 import { usePublicPrompts } from '@/hooks/usePublicPrompts';
-import { PromptManagementDialog } from './PromptManagementDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { PromptSelector } from './PromptSelector';
+import { PromptManagementButtons } from './PromptManagementButtons';
+import { TweetPreview } from './TweetPreview';
 
 interface CommentGenerationProps {
   prompt: string;
@@ -120,9 +120,6 @@ export const CommentGeneration = ({
   const canEditPublicPrompt = selectedPrompt && selectedPrompt.type === 'public' && 
     'created_by' in selectedPrompt && selectedPrompt.created_by === user?.id;
 
-  // Показываем кнопки для всех промптов, но с разной логикой
-  const showEditDeleteButtons = selectedPrompt !== undefined;
-
   return (
     <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg" data-section="comments">
       <CardHeader className="bg-gray-700/80 border-b border-gray-600">
@@ -135,83 +132,25 @@ export const CommentGeneration = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 p-6">
-        {extractedTweets.length > 0 && (
-          <div className="bg-gray-700/50 rounded-lg p-3 mb-4">
-            <p className="text-sm text-gray-300 mb-2">Извлеченные твиты:</p>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
-              {extractedTweets.slice(0, 5).map((tweet, index) => (
-                <div key={tweet.id} className="text-xs text-gray-400 bg-gray-800/50 rounded p-2">
-                  <span className="font-semibold">@{tweet.author}:</span> {tweet.text.slice(0, 60)}...
-                </div>
-              ))}
-              {extractedTweets.length > 5 && (
-                <p className="text-xs text-gray-500">И еще {extractedTweets.length - 5} твитов...</p>
-              )}
-            </div>
-          </div>
-        )}
+        <TweetPreview extractedTweets={extractedTweets} />
 
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <Label className="text-gray-200 font-medium">Выбор промпта</Label>
-            <div className="flex gap-2">
-              <PromptManagementDialog
-                onSave={handleCreatePublicPrompt}
-                trigger={
-                  <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать публичный
-                  </Button>
-                }
-              />
-            </div>
+            <PromptManagementButtons
+              selectedPrompt={selectedPrompt}
+              canEditPublicPrompt={!!canEditPublicPrompt}
+              onCreatePublicPrompt={handleCreatePublicPrompt}
+              onUpdatePrompt={handleUpdatePrompt}
+              onDeletePrompt={handleDeletePrompt}
+            />
           </div>
-          <div className="flex gap-2">
-            <Select value={prompt} onValueChange={setPrompt}>
-              <SelectTrigger className="bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 flex-1">
-                <SelectValue placeholder="Выберите сохраненный промпт или введите новый" />
-              </SelectTrigger>
-              <SelectContent>
-                {allPrompts.map((promptItem) => (
-                  <SelectItem key={`${promptItem.type}-${promptItem.id}`} value={promptItem.text}>
-                    <div className="flex items-center gap-2">
-                      {promptItem.type === 'public' && <Globe className="w-3 h-3 text-blue-400" />}
-                      <span>{promptItem.name} - {promptItem.text.slice(0, 50)}...</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {showEditDeleteButtons && (
-              <div className="flex gap-1">
-                <PromptManagementDialog
-                  prompt={selectedPrompt}
-                  isPublic={selectedPrompt.type === 'public'}
-                  onSave={handleUpdatePrompt}
-                  onDelete={selectedPrompt.type === 'public' && canEditPublicPrompt ? handleDeletePrompt : undefined}
-                  trigger={
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                      disabled={selectedPrompt.type === 'public' && !canEditPublicPrompt}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                  }
-                />
-                <Button
-                  onClick={handleDeletePrompt}
-                  variant="outline"
-                  size="sm"
-                  className="border-red-600 text-red-400 hover:bg-red-700 hover:text-white"
-                  disabled={selectedPrompt.type === 'personal' || (selectedPrompt.type === 'public' && !canEditPublicPrompt)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-          </div>
+          <PromptSelector
+            prompt={prompt}
+            setPrompt={setPrompt}
+            savedPrompts={savedPrompts}
+            publicPrompts={publicPrompts}
+          />
         </div>
 
         <div className="space-y-2">
@@ -273,4 +212,3 @@ export const CommentGeneration = ({
     </Card>
   );
 };
-
