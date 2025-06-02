@@ -1,4 +1,5 @@
 
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -62,41 +63,65 @@ export const CommentGeneration = ({
   };
 
   const handleUpdatePrompt = async (name: string, text: string) => {
-    if (!selectedPrompt || selectedPrompt.type !== 'public') return { success: false, message: 'Промпт не найден' };
+    if (!selectedPrompt) return { success: false, message: 'Промпт не найден' };
 
-    const result = await updatePublicPrompt(selectedPrompt.id, name, text);
-    toast({
-      title: result.success ? "Успех" : "Ошибка",
-      description: result.message,
-      variant: result.success ? "default" : "destructive"
-    });
+    if (selectedPrompt.type === 'public') {
+      const result = await updatePublicPrompt(selectedPrompt.id, name, text);
+      toast({
+        title: result.success ? "Успех" : "Ошибка",
+        description: result.message,
+        variant: result.success ? "default" : "destructive"
+      });
 
-    if (result.success) {
-      setPrompt(text); // Обновляем текущий промпт
+      if (result.success) {
+        setPrompt(text); // Обновляем текущий промпт
+      }
+
+      return result;
+    } else {
+      // Для личных промптов показываем сообщение, что нужно использовать функционал сохранения
+      toast({
+        title: "Информация",
+        description: "Для изменения личного промпта используйте кнопку сохранения",
+        variant: "default"
+      });
+      return { success: false, message: 'Используйте кнопку сохранения для личных промптов' };
     }
-
-    return result;
   };
 
   const handleDeletePrompt = async () => {
-    if (!selectedPrompt || selectedPrompt.type !== 'public') return { success: false, message: 'Промпт не найден' };
+    if (!selectedPrompt) return { success: false, message: 'Промпт не найден' };
 
-    const result = await deletePublicPrompt(selectedPrompt.id);
-    toast({
-      title: result.success ? "Успех" : "Ошибка",
-      description: result.message,
-      variant: result.success ? "default" : "destructive"
-    });
+    if (selectedPrompt.type === 'public') {
+      const result = await deletePublicPrompt(selectedPrompt.id);
+      toast({
+        title: result.success ? "Успех" : "Ошибка",
+        description: result.message,
+        variant: result.success ? "default" : "destructive"
+      });
 
-    if (result.success && selectedPrompt.text === prompt) {
-      setPrompt(''); // Очищаем промпт если он был удален
+      if (result.success && selectedPrompt.text === prompt) {
+        setPrompt(''); // Очищаем промпт если он был удален
+      }
+
+      return result;
+    } else {
+      // Для личных промптов показываем сообщение, что функционал недоступен
+      toast({
+        title: "Информация",
+        description: "Удаление личных промптов пока недоступно",
+        variant: "default"
+      });
+      return { success: false, message: 'Удаление личных промптов недоступно' };
     }
-
-    return result;
   };
 
-  const canEditPrompt = selectedPrompt && selectedPrompt.type === 'public' && 
+  // Проверяем права редактирования для публичных промптов
+  const canEditPublicPrompt = selectedPrompt && selectedPrompt.type === 'public' && 
     'created_by' in selectedPrompt && selectedPrompt.created_by === user?.id;
+
+  // Показываем кнопки для всех промптов, но с разной логикой
+  const showEditDeleteButtons = selectedPrompt !== undefined;
 
   return (
     <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg" data-section="comments">
@@ -157,15 +182,20 @@ export const CommentGeneration = ({
                 ))}
               </SelectContent>
             </Select>
-            {selectedPrompt && canEditPrompt && (
+            {showEditDeleteButtons && (
               <div className="flex gap-1">
                 <PromptManagementDialog
                   prompt={selectedPrompt}
                   isPublic={selectedPrompt.type === 'public'}
                   onSave={handleUpdatePrompt}
-                  onDelete={handleDeletePrompt}
+                  onDelete={selectedPrompt.type === 'public' && canEditPublicPrompt ? handleDeletePrompt : undefined}
                   trigger={
-                    <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                      disabled={selectedPrompt.type === 'public' && !canEditPublicPrompt}
+                    >
                       <Edit className="w-4 h-4" />
                     </Button>
                   }
@@ -175,6 +205,7 @@ export const CommentGeneration = ({
                   variant="outline"
                   size="sm"
                   className="border-red-600 text-red-400 hover:bg-red-700 hover:text-white"
+                  disabled={selectedPrompt.type === 'personal' || (selectedPrompt.type === 'public' && !canEditPublicPrompt)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -242,3 +273,4 @@ export const CommentGeneration = ({
     </Card>
   );
 };
+
