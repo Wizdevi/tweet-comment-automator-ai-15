@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -156,21 +157,27 @@ export const CommentGeneration = ({
                 ))}
               </SelectContent>
             </Select>
-            {selectedPrompt && (
+            {selectedPrompt && canEditPrompt && (
               <div className="flex gap-1">
-                {canEditPrompt && (
-                  <PromptManagementDialog
-                    prompt={selectedPrompt}
-                    isPublic={selectedPrompt.type === 'public'}
-                    onSave={handleUpdatePrompt}
-                    onDelete={handleDeletePrompt}
-                    trigger={
-                      <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    }
-                  />
-                )}
+                <PromptManagementDialog
+                  prompt={selectedPrompt}
+                  isPublic={selectedPrompt.type === 'public'}
+                  onSave={handleUpdatePrompt}
+                  onDelete={handleDeletePrompt}
+                  trigger={
+                    <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  }
+                />
+                <Button
+                  onClick={handleDeletePrompt}
+                  variant="outline"
+                  size="sm"
+                  className="border-red-600 text-red-400 hover:bg-red-700 hover:text-white"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             )}
           </div>
