@@ -27,6 +27,16 @@ export interface SavedPrompt {
   createdAt: string;
 }
 
+export interface PublicPrompt {
+  id: string;
+  name: string;
+  text: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
 export interface TweetExtractorProps {
   apiKeys: ApiKeys;
   addLog: (type: 'info' | 'success' | 'warning' | 'error', message: string, details?: any) => void;
