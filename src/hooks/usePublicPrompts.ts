@@ -98,9 +98,10 @@ export const usePublicPrompts = () => {
     if (!user) return { success: false, message: 'Пользователь не авторизован' };
 
     try {
+      // Используем реальное удаление записи из базы данных
       const { error } = await supabase
         .from('public_prompts')
-        .update({ is_active: false })
+        .delete()
         .eq('id', id);
 
       if (error) {

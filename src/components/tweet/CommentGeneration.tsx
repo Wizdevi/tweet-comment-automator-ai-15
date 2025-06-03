@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
-import { Play } from 'lucide-react';
+import { Play, Save } from 'lucide-react';
 import { Tweet, SavedPrompt } from '@/types/tweet';
 import { usePublicPrompts } from '@/hooks/usePublicPrompts';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,6 +12,8 @@ import { toast } from '@/hooks/use-toast';
 import { PromptSelector } from './PromptSelector';
 import { PromptManagementButtons } from './PromptManagementButtons';
 import { TweetPreview } from './TweetPreview';
+import { useState } from 'react';
+import { PromptManagementDialog } from './PromptManagementDialog';
 
 interface CommentGenerationProps {
   prompt: string;
@@ -40,24 +42,12 @@ export const CommentGeneration = ({
 }: CommentGenerationProps) => {
   const { user } = useAuth();
   const { publicPrompts, createPublicPrompt, updatePublicPrompt, deletePublicPrompt } = usePublicPrompts();
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   console.log('CommentGeneration render - extractedTweets:', extractedTweets.length);
 
-  // Используем только публичные промпты
-  const allPrompts = publicPrompts.map(p => ({ ...p, type: 'public' as const }));
-
   // Находим выбранный промпт
-  const selectedPrompt = allPrompts.find(p => p.text === prompt);
-
-  const handleCreatePublicPrompt = async (name: string, text: string) => {
-    const result = await createPublicPrompt(name, text);
-    toast({
-      title: result.success ? "Успех" : "Ошибка",
-      description: result.message,
-      variant: result.success ? "default" : "destructive"
-    });
-    return result;
-  };
+  const selectedPrompt = publicPrompts.find(p => p.text === prompt);
 
   const handleUpdatePrompt = async (name: string, text: string) => {
     if (!selectedPrompt) return { success: false, message: 'Промпт не найден' };
@@ -93,6 +83,16 @@ export const CommentGeneration = ({
     return result;
   };
 
+  const handleSaveNewPrompt = async (name: string, text: string) => {
+    const result = await createPublicPrompt(name, text);
+    toast({
+      title: result.success ? "Успех" : "Ошибка",
+      description: result.message,
+      variant: result.success ? "default" : "destructive"
+    });
+    return result;
+  };
+
   return (
     <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg" data-section="comments">
       <CardHeader className="bg-gray-700/80 border-b border-gray-600">
@@ -112,7 +112,6 @@ export const CommentGeneration = ({
             <Label className="text-gray-200 font-medium">Выбор промпта</Label>
             <PromptManagementButtons
               selectedPrompt={selectedPrompt}
-              onCreatePublicPrompt={handleCreatePublicPrompt}
               onUpdatePrompt={handleUpdatePrompt}
               onDeletePrompt={handleDeletePrompt}
             />
@@ -125,7 +124,18 @@ export const CommentGeneration = ({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-gray-200 font-medium">Промпт для генерации комментариев</Label>
+          <div className="flex justify-between items-center">
+            <Label className="text-gray-200 font-medium">Промпт для генерации комментариев</Label>
+            <PromptManagementDialog
+              onSave={handleSaveNewPrompt}
+              trigger={
+                <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+                  <Save className="w-4 h-4 mr-2" />
+                  Сохранить промпт
+                </Button>
+              }
+            />
+          </div>
           <Textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
