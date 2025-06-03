@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
-import { Play, Save } from 'lucide-react';
+import { Play } from 'lucide-react';
 import { Tweet, SavedPrompt } from '@/types/tweet';
 import { usePublicPrompts } from '@/hooks/usePublicPrompts';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,11 +43,8 @@ export const CommentGeneration = ({
 
   console.log('CommentGeneration render - extractedTweets:', extractedTweets.length);
 
-  // Объединяем личные и публичные промпты для отображения
-  const allPrompts = [
-    ...savedPrompts.map(p => ({ ...p, type: 'personal' as const })),
-    ...publicPrompts.map(p => ({ ...p, type: 'public' as const }))
-  ];
+  // Используем только публичные промпты
+  const allPrompts = publicPrompts.map(p => ({ ...p, type: 'public' as const }));
 
   // Находим выбранный промпт
   const selectedPrompt = allPrompts.find(p => p.text === prompt);
@@ -65,55 +62,35 @@ export const CommentGeneration = ({
   const handleUpdatePrompt = async (name: string, text: string) => {
     if (!selectedPrompt) return { success: false, message: 'Промпт не найден' };
 
-    if (selectedPrompt.type === 'public') {
-      const result = await updatePublicPrompt(selectedPrompt.id, name, text);
-      toast({
-        title: result.success ? "Успех" : "Ошибка",
-        description: result.message,
-        variant: result.success ? "default" : "destructive"
-      });
+    const result = await updatePublicPrompt(selectedPrompt.id, name, text);
+    toast({
+      title: result.success ? "Успех" : "Ошибка",
+      description: result.message,
+      variant: result.success ? "default" : "destructive"
+    });
 
-      if (result.success) {
-        setPrompt(text); // Обновляем текущий промпт
-      }
-
-      return result;
-    } else {
-      // Для личных промптов показываем сообщение, что нужно использовать функционал сохранения
-      toast({
-        title: "Информация",
-        description: "Для изменения личного промпта используйте кнопку сохранения",
-        variant: "default"
-      });
-      return { success: false, message: 'Используйте кнопку сохранения для личных промптов' };
+    if (result.success) {
+      setPrompt(text); // Обновляем текущий промпт
     }
+
+    return result;
   };
 
   const handleDeletePrompt = async () => {
     if (!selectedPrompt) return { success: false, message: 'Промпт не найден' };
 
-    if (selectedPrompt.type === 'public') {
-      const result = await deletePublicPrompt(selectedPrompt.id);
-      toast({
-        title: result.success ? "Успех" : "Ошибка",
-        description: result.message,
-        variant: result.success ? "default" : "destructive"
-      });
+    const result = await deletePublicPrompt(selectedPrompt.id);
+    toast({
+      title: result.success ? "Успех" : "Ошибка",
+      description: result.message,
+      variant: result.success ? "default" : "destructive"
+    });
 
-      if (result.success && selectedPrompt.text === prompt) {
-        setPrompt(''); // Очищаем промпт если он был удален
-      }
-
-      return result;
-    } else {
-      // Для личных промптов показываем сообщение, что функционал недоступен
-      toast({
-        title: "Информация",
-        description: "Удаление личных промптов пока недоступно",
-        variant: "default"
-      });
-      return { success: false, message: 'Удаление личных промптов недоступно' };
+    if (result.success && selectedPrompt.text === prompt) {
+      setPrompt(''); // Очищаем промпт если он был удален
     }
+
+    return result;
   };
 
   return (
@@ -143,29 +120,18 @@ export const CommentGeneration = ({
           <PromptSelector
             prompt={prompt}
             setPrompt={setPrompt}
-            savedPrompts={savedPrompts}
             publicPrompts={publicPrompts}
           />
         </div>
 
         <div className="space-y-2">
           <Label className="text-gray-200 font-medium">Промпт для генерации комментариев</Label>
-          <div className="flex gap-2">
-            <Textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 min-h-[80px] focus:border-blue-500 focus:ring-1 focus:ring-blue-500 flex-1"
-              placeholder="Введите инструкции для ИИ..."
-            />
-            <Button
-              onClick={onSavePrompt}
-              variant="outline"
-              size="sm"
-              className="h-fit border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              <Save className="w-4 h-4" />
-            </Button>
-          </div>
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 min-h-[80px] focus:border-blue-500 focus:ring-1 focus:ring-blue-500 flex-1"
+            placeholder="Введите инструкции для ИИ или выберите из сохраненных промптов..."
+          />
         </div>
 
         <div className="space-y-3">

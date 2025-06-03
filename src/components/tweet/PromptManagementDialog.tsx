@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,9 +24,17 @@ export const PromptManagementDialog = ({
   trigger 
 }: PromptManagementDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState(prompt?.name || '');
-  const [text, setText] = useState(prompt?.text || '');
+  const [name, setName] = useState('');
+  const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Инициализируем поля при изменении промпта или открытии диалога
+  useEffect(() => {
+    if (open) {
+      setName(prompt?.name || '');
+      setText(prompt?.text || '');
+    }
+  }, [open, prompt]);
 
   const handleSave = async () => {
     if (!name.trim() || !text.trim()) return;
@@ -36,8 +44,11 @@ export const PromptManagementDialog = ({
       const result = await onSave(name.trim(), text.trim());
       if (result.success) {
         setOpen(false);
-        setName('');
-        setText('');
+        // Очищаем поля только при создании нового промпта
+        if (!prompt) {
+          setName('');
+          setText('');
+        }
       }
     } finally {
       setIsLoading(false);
@@ -58,8 +69,17 @@ export const PromptManagementDialog = ({
     }
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen && !prompt) {
+      // Очищаем поля только при закрытии диалога создания
+      setName('');
+      setText('');
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>

@@ -79,8 +79,7 @@ export const usePublicPrompts = () => {
           name: name.trim(),
           text: text.trim()
         })
-        .eq('id', id)
-        .eq('created_by', user.id);
+        .eq('id', id);
 
       if (error) {
         console.error('Error updating public prompt:', error);
@@ -102,8 +101,7 @@ export const usePublicPrompts = () => {
       const { error } = await supabase
         .from('public_prompts')
         .update({ is_active: false })
-        .eq('id', id)
-        .eq('created_by', user.id);
+        .eq('id', id);
 
       if (error) {
         console.error('Error deleting public prompt:', error);
