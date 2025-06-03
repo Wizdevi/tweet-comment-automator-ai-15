@@ -116,10 +116,6 @@ export const CommentGeneration = ({
     }
   };
 
-  // Проверяем права редактирования для публичных промптов
-  const canEditPublicPrompt = selectedPrompt && selectedPrompt.type === 'public' && 
-    'created_by' in selectedPrompt && selectedPrompt.created_by === user?.id;
-
   return (
     <Card className="bg-gray-800/90 backdrop-blur-sm border-gray-600 shadow-lg" data-section="comments">
       <CardHeader className="bg-gray-700/80 border-b border-gray-600">
@@ -139,7 +135,6 @@ export const CommentGeneration = ({
             <Label className="text-gray-200 font-medium">Выбор промпта</Label>
             <PromptManagementButtons
               selectedPrompt={selectedPrompt}
-              canEditPublicPrompt={!!canEditPublicPrompt}
               onCreatePublicPrompt={handleCreatePublicPrompt}
               onUpdatePrompt={handleUpdatePrompt}
               onDeletePrompt={handleDeletePrompt}
