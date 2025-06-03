@@ -98,6 +98,8 @@ export const usePublicPrompts = () => {
     if (!user) return { success: false, message: 'Пользователь не авторизован' };
 
     try {
+      console.log('Deleting prompt with id:', id);
+      
       // Используем реальное удаление записи из базы данных
       const { error } = await supabase
         .from('public_prompts')
@@ -109,7 +111,10 @@ export const usePublicPrompts = () => {
         return { success: false, message: 'Ошибка при удалении промпта' };
       }
 
+      // Принудительно перезагружаем список
       await loadPublicPrompts();
+      console.log('Prompt deleted successfully, list reloaded');
+      
       return { success: true, message: 'Промпт удален' };
     } catch (error) {
       console.error('Error deleting public prompt:', error);

@@ -126,7 +126,7 @@ export const CommentGeneration = ({
           <div className="flex justify-between items-center">
             <Label className="text-gray-200 font-medium">Промпт для генерации комментариев</Label>
             <PromptManagementDialog
-              prompt={{ name: '', text: prompt }}
+              prompt={{ name: '', text: prompt, id: '', created_at: '', updated_at: '', created_by: '', is_active: true }}
               onSave={handleSaveNewPrompt}
               trigger={
                 <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">
