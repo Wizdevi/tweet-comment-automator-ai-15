@@ -22,6 +22,12 @@ export const PromptManagementButtons = ({
     return null;
   }
 
+  const handleDeleteClick = async () => {
+    const result = await onDeletePrompt();
+    // Дополнительно можем логировать результат
+    console.log('Delete result:', result);
+  };
+
   return (
     <div className="flex gap-1">
       <PromptManagementDialog
@@ -40,7 +46,7 @@ export const PromptManagementButtons = ({
         }
       />
       <Button
-        onClick={onDeletePrompt}
+        onClick={handleDeleteClick}
         variant="outline"
         size="sm"
         className="border-red-600 text-red-400 hover:bg-red-700 hover:text-white"

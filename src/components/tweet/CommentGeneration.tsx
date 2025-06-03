@@ -42,7 +42,6 @@ export const CommentGeneration = ({
 }: CommentGenerationProps) => {
   const { user } = useAuth();
   const { publicPrompts, createPublicPrompt, updatePublicPrompt, deletePublicPrompt } = usePublicPrompts();
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   console.log('CommentGeneration render - extractedTweets:', extractedTweets.length);
 
@@ -76,7 +75,7 @@ export const CommentGeneration = ({
       variant: result.success ? "default" : "destructive"
     });
 
-    if (result.success && selectedPrompt.text === prompt) {
+    if (result.success) {
       setPrompt(''); // Очищаем промпт если он был удален
     }
 
@@ -127,6 +126,7 @@ export const CommentGeneration = ({
           <div className="flex justify-between items-center">
             <Label className="text-gray-200 font-medium">Промпт для генерации комментариев</Label>
             <PromptManagementDialog
+              prompt={{ name: '', text: prompt }}
               onSave={handleSaveNewPrompt}
               trigger={
                 <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">
