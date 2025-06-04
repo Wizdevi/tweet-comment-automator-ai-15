@@ -16,6 +16,7 @@ export const PromptManagementButtons = ({
   onUpdatePrompt,
   onDeletePrompt
 }: PromptManagementButtonsProps) => {
+  // Показываем кнопки если промпт выбран
   const showEditDeleteButtons = selectedPrompt !== undefined;
 
   if (!showEditDeleteButtons) {
@@ -24,7 +25,6 @@ export const PromptManagementButtons = ({
 
   const handleDeleteClick = async () => {
     const result = await onDeletePrompt();
-    // Дополнительно можем логировать результат
     console.log('Delete result:', result);
   };
 
