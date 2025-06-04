@@ -98,22 +98,47 @@ export const usePublicPrompts = () => {
     if (!user) return { success: false, message: 'Пользователь не авторизован' };
 
     try {
-      console.log('Deleting prompt with id:', id);
+      console.log('Attempting to delete prompt with id:', id);
+      console.log('Current user id:', user.id);
       
-      // Используем реальное удаление записи из базы данных
-      const { error } = await supabase
+      // Сначала проверяем, что промпт существует и принадлежит пользователю
+      const { data: promptToDelete, error: selectError } = await supabase
         .from('public_prompts')
-        .delete()
-        .eq('id', id);
+        .select('id, created_by')
+        .eq('id', id)
+        .single();
 
-      if (error) {
-        console.error('Error deleting public prompt:', error);
-        return { success: false, message: 'Ошибка при удалении промпта' };
+      if (selectError) {
+        console.error('Error finding prompt to delete:', selectError);
+        return { success: false, message: 'Промпт не найден' };
       }
 
-      // Принудительно перезагружаем список
-      await loadPublicPrompts();
-      console.log('Prompt deleted successfully, list reloaded');
+      if (promptToDelete.created_by !== user.id) {
+        console.error('User does not own this prompt');
+        return { success: false, message: 'У вас нет прав на удаление этого промпта' };
+      }
+
+      // Выполняем удаление
+      const { error: deleteError } = await supabase
+        .from('public_prompts')
+        .delete()
+        .eq('id', id)
+        .eq('created_by', user.id); // Дополнительная проверка безопасности
+
+      if (deleteError) {
+        console.error('Error deleting public prompt:', deleteError);
+        return { success: false, message: 'Ошибка при удалении промпта: ' + deleteError.message };
+      }
+
+      console.log('Prompt deleted successfully, reloading list...');
+      
+      // Обновляем локальное состояние немедленно
+      setPublicPrompts(prev => prev.filter(prompt => prompt.id !== id));
+      
+      // Также перезагружаем с сервера для синхронизации
+      setTimeout(() => {
+        loadPublicPrompts();
+      }, 100);
       
       return { success: true, message: 'Промпт удален' };
     } catch (error) {
